@@ -650,16 +650,16 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Total Cost</div>
             <div class="kpi-value">${total_cost:,.0f}</div>
-            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Nov 2025 – Mar 2026</div>
+            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">Nov 2025 – Mar 2026</div>
         </div>""", unsafe_allow_html=True)
 
     with k2:
         st.markdown(f"""
         <div class="kpi-card" style="text-align:left;">
             <div class="kpi-label" style="text-align:center;">Avg Cost</div>
-            <div class="kpi-value" style="font-size:1.4rem;">${avg_hourly:,.0f} <span style="font-size:0.85rem;font-weight:400;color:#64748b;">/ hr</span></div>
-            <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:4px;">${avg_daily:,.0f} <span style="font-size:0.78rem;font-weight:400;color:#64748b;">/ day</span></div>
-            <div style="font-size:0.78rem;color:#64748b;margin-top:3px;">${avg_weekly:,.0f} / wk &nbsp;·&nbsp; ${avg_monthly:,.0f} / mo</div>
+            <div class="kpi-value" style="font-size:1.4rem;">${avg_hourly:,.0f} <span style="font-size:0.85rem;font-weight:400;color:#0f172a;">/ hr</span></div>
+            <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:4px;">${avg_daily:,.0f} <span style="font-size:0.78rem;font-weight:400;color:#0f172a;">/ day</span></div>
+            <div style="font-size:0.78rem;color:#0f172a;margin-top:3px;">${avg_weekly:,.0f} / wk &nbsp;·&nbsp; ${avg_monthly:,.0f} / mo</div>
         </div>""", unsafe_allow_html=True)
 
     with k3:
@@ -667,7 +667,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Infrastructure Cost</div>
             <div class="kpi-value">{infra_pct:.1f}%</div>
-            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_infra:,.0f} total</div>
+            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">${total_infra:,.0f} total</div>
             <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{infra_pct:.1f}%;height:4px;background:#6366f1;border-radius:2px;"></div>
             </div>
@@ -678,7 +678,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Model Cost</div>
             <div class="kpi-value">{model_pct:.1f}%</div>
-            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_model:,.0f} total</div>
+            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">${total_model:,.0f} total</div>
             <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{model_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div>
             </div>
@@ -689,7 +689,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Cost per Research Request</div>
             <div class="kpi-value">${median_cost_per_req:.2f}</div>
-            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">median (infra + model)</div>
+            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">median (infra + model)</div>
         </div>""", unsafe_allow_html=True)
 
     st.markdown("")
@@ -729,7 +729,7 @@ with tab4:
   #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#0f172a; }}
 </style>
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
-  <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
+  <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
   <button class="tbtn active" id="btn-all" onclick="setFilter('all')">All</button>
   <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
   <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
@@ -746,7 +746,7 @@ with tab4:
       <canvas id="pieChart"></canvas>
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
         <div id="centerPct" style="font-size:22px;font-weight:500;color:#0f172a;"></div>
-        <div id="centerSub" style="font-size:11px;color:#64748b;"></div>
+        <div id="centerSub" style="font-size:11px;color:#0f172a;"></div>
       </div>
     </div>
   </div>
@@ -786,7 +786,7 @@ with tab4:
     buildLegend(pie); updateCenter(f,pie);
   }}
   const {{bar:ib,pie:ip}}=getData("all");
-  const gc="rgba(0,0,0,0.07)",tc="#94a3b8";
+  const gc="rgba(0,0,0,0.07)",tc="#0f172a";
   const barChart=new Chart(document.getElementById("barChart"),{{
     type:"bar",
     data:{{labels:ib.map(d=>d.label),datasets:[{{data:ib.map(d=>d.value),backgroundColor:ib.map(d=>d.color),borderRadius:3}}]}},
@@ -882,9 +882,9 @@ with tab4:
   .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#0f172a; }}
 </style>
 <div class="row">
-  <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
+  <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
   <button class="vbtn active" id="btn-daily" onclick="setView('daily')">Daily</button>
-  <span style="font-size:11px;color:#64748b;">Hourly zoom:</span>
+  <span style="font-size:11px;color:#0f172a;">Hourly zoom:</span>
   <button class="vbtn" id="btn-2025-12" onclick="setView('2025-12')">Dec 2025</button>
   <button class="vbtn" id="btn-2026-01" onclick="setView('2026-01')">Jan 2026</button>
   <button class="vbtn" id="btn-2026-02" onclick="setView('2026-02')">Feb 2026</button>
@@ -1126,7 +1126,7 @@ with tab4:
   .concl-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }}
   .concl-card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; }}
   .bar-bg {{ margin-top:8px; height:4px; background:#e2e8f0; border-radius:2px; }}
-  .comp-names {{ margin-top:10px; font-size:11px; color:#64748b; line-height:1.7; }}
+  .comp-names {{ margin-top:10px; font-size:11px; color:#0f172a; line-height:1.7; }}
 </style>
 
 <div class="card">
@@ -1156,16 +1156,16 @@ with tab4:
   <p class="slabel">Step 3 — Conclusion: fixed vs variable split</p>
   <div class="concl-grid">
     <div class="concl-card">
-      <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Fixed costs</div>
+      <div style="font-size:12px;color:#0f172a;margin-bottom:4px;">Fixed costs</div>
       <div style="font-size:22px;font-weight:500;color:#0f172a;">${fixed_total:,.0f} <span style="font-size:14px;color:#64748b;">{fixed_pct:.1f}%</span></div>
-      <div style="font-size:11px;color:#64748b;margin-top:4px;">Always-on regardless of usage</div>
+      <div style="font-size:11px;color:#0f172a;margin-top:4px;">Always-on regardless of usage</div>
       <div class="bar-bg"><div style="width:{fixed_pct:.1f}%;height:4px;background:#534AB7;border-radius:2px;"></div></div>
       <div class="comp-names">{fixed_names_str}</div>
     </div>
     <div class="concl-card">
-      <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Variable costs</div>
+      <div style="font-size:12px;color:#0f172a;margin-bottom:4px;">Variable costs</div>
       <div style="font-size:22px;font-weight:500;color:#0f172a;">${var_total:,.0f} <span style="font-size:14px;color:#64748b;">{var_pct:.1f}%</span></div>
-      <div style="font-size:11px;color:#64748b;margin-top:4px;">Scales with research request volume</div>
+      <div style="font-size:11px;color:#0f172a;margin-top:4px;">Scales with research request volume</div>
       <div class="bar-bg"><div style="width:{var_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div></div>
       <div class="comp-names">{var_names_str}</div>
     </div>
@@ -1284,7 +1284,7 @@ with tab4:
 
     st.markdown("---")
 st.markdown(
-    "<div style='text-align:center;color:#94a3b8;font-size:0.8rem'>"
+    "<div style='text-align:center;color:#64748b;font-size:0.8rem'>"
     "Tavily Research API · Data Analyst Home Assignment · "
     "Data sampled from production · Analysis period: Nov 2025 – Mar 2026"
     "</div>",
