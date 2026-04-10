@@ -22,12 +22,12 @@ st.markdown("""
 
     html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
-    .main { background-color: #0f1117; }
+    .main { background-color: #ffffff; }
     .block-container { padding-top: 2rem; padding-bottom: 2rem; }
 
     .kpi-card {
-        background: #1a1d27;
-        border: 1px solid #2a2d3a;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 1.2rem 1.5rem;
         text-align: center;
@@ -35,7 +35,7 @@ st.markdown("""
     .kpi-value {
         font-size: 2rem;
         font-weight: 600;
-        color: #e2e8f0;
+        color: #1e293b;
         font-family: 'DM Mono', monospace;
         line-height: 1.2;
     }
@@ -52,39 +52,39 @@ st.markdown("""
     .section-header {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #94a3b8;
+        color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.1em;
         margin: 1.5rem 0 0.8rem 0;
         padding-bottom: 0.5rem;
-        border-bottom: 1px solid #2a2d3a;
+        border-bottom: 1px solid #e2e8f0;
     }
     .insight-box {
-        background: #1a1d27;
+        background: #f8fafc;
         border-left: 3px solid #6366f1;
         border-radius: 0 8px 8px 0;
         padding: 0.8rem 1rem;
         margin: 0.5rem 0;
         font-size: 0.88rem;
-        color: #cbd5e1;
+        color: #334155;
     }
     .insight-box.warning { border-left-color: #f59e0b; }
     .insight-box.success { border-left-color: #4ade80; }
     .insight-box.danger  { border-left-color: #f87171; }
 
-    h1 { color: #e2e8f0 !important; font-weight: 600 !important; }
-    h2, h3 { color: #cbd5e1 !important; font-weight: 500 !important; }
+    h1 { color: #0f172a !important; font-weight: 600 !important; }
+    h2, h3 { color: #1e293b !important; font-weight: 500 !important; }
     .stTabs [data-baseweb="tab"] { color: #64748b; font-size: 0.9rem; }
-    .stTabs [aria-selected="true"] { color: #e2e8f0 !important; }
+    .stTabs [aria-selected="true"] { color: #0f172a !important; }
 </style>
 """, unsafe_allow_html=True)
 
 PLOTLY_THEME = dict(
-    template="plotly_dark",
-    paper_bgcolor="#0f1117",
-    plot_bgcolor="#0f1117",
+    template="plotly_white",
+    paper_bgcolor="#ffffff",
+    plot_bgcolor="#ffffff",
     font_family="DM Sans",
-    font_color="#94a3b8",
+    font_color="#475569",
 )
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 
@@ -656,7 +656,7 @@ with tab4:
         <div class="kpi-card" style="text-align:left;">
             <div class="kpi-label" style="text-align:center;">Avg Cost</div>
             <div class="kpi-value" style="font-size:1.4rem;">${avg_hourly:,.0f} <span style="font-size:0.85rem;font-weight:400;color:#64748b;">/ hr</span></div>
-            <div style="font-size:0.9rem;font-weight:500;color:#e2e8f0;margin-top:4px;">${avg_daily:,.0f} <span style="font-size:0.78rem;font-weight:400;color:#64748b;">/ day</span></div>
+            <div style="font-size:0.9rem;font-weight:500;color:#1e293b;margin-top:4px;">${avg_daily:,.0f} <span style="font-size:0.78rem;font-weight:400;color:#64748b;">/ day</span></div>
             <div style="font-size:0.78rem;color:#64748b;margin-top:3px;">${avg_weekly:,.0f} / wk &nbsp;·&nbsp; ${avg_monthly:,.0f} / mo</div>
         </div>""", unsafe_allow_html=True)
 
@@ -666,7 +666,7 @@ with tab4:
             <div class="kpi-label">Infrastructure Cost</div>
             <div class="kpi-value">{infra_pct:.1f}%</div>
             <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_infra:,.0f} total</div>
-            <div style="margin-top:8px;height:4px;background:#2a2d3a;border-radius:2px;">
+            <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{infra_pct:.1f}%;height:4px;background:#6366f1;border-radius:2px;"></div>
             </div>
         </div>""", unsafe_allow_html=True)
@@ -677,7 +677,7 @@ with tab4:
             <div class="kpi-label">Model Cost</div>
             <div class="kpi-value">{model_pct:.1f}%</div>
             <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_model:,.0f} total</div>
-            <div style="margin-top:8px;height:4px;background:#2a2d3a;border-radius:2px;">
+            <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{model_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div>
             </div>
         </div>""", unsafe_allow_html=True)
@@ -720,11 +720,11 @@ with tab4:
 <style>
   * {{ box-sizing: border-box; font-family: sans-serif; }}
   body {{ margin:0; background:transparent; }}
-  .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #4a5568; background:transparent; color:#94a3b8; cursor:pointer; }}
-  .tbtn.active {{ background:#e2e8f0; color:#0f1117; }}
-  .card {{ background:#1a1d27; border:1px solid #2a2d3a; border-radius:12px; padding:1rem 1.25rem; }}
+  .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; }}
+  .tbtn.active {{ background:#1e293b; color:#ffffff; }}
+  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; }}
   .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin:0 0 0.75rem; }}
-  #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#94a3b8; }}
+  #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#64748b; }}
 </style>
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
   <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
@@ -743,7 +743,7 @@ with tab4:
     <div style="position:relative;width:100%;height:280px;">
       <canvas id="pieChart"></canvas>
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
-        <div id="centerPct" style="font-size:22px;font-weight:500;color:#e2e8f0;"></div>
+        <div id="centerPct" style="font-size:22px;font-weight:500;color:#1e293b;"></div>
         <div id="centerSub" style="font-size:11px;color:#64748b;"></div>
       </div>
     </div>
@@ -761,7 +761,7 @@ with tab4:
   }}
   function buildLegend(data) {{
     document.getElementById("legend").innerHTML = data.map(d=>
-      `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${{d.color}};display:inline-block;border:1px solid #2a2d3a;"></span>${{d.label}} ${{(d.value/TOTAL*100).toFixed(1)}}%</span>`
+      `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${{d.color}};display:inline-block;border:1px solid #e2e8f0;"></span>${{d.label}} ${{(d.value/TOTAL*100).toFixed(1)}}%</span>`
     ).join("");
   }}
   function updateCenter(f, pie) {{
@@ -779,12 +779,12 @@ with tab4:
     barChart.update();
     pieChart.data.labels=[...pie.map(d=>d.label),f!=="all"?"Other":null].filter(Boolean);
     pieChart.data.datasets[0].data=[...pie.map(d=>d.value),f!=="all"?rem:null].filter(v=>v!==null);
-    pieChart.data.datasets[0].backgroundColor=[...pie.map(d=>d.color),f!=="all"?"#2a2d3a":null].filter(Boolean);
+    pieChart.data.datasets[0].backgroundColor=[...pie.map(d=>d.color),f!=="all"?"#e2e8f0":null].filter(Boolean);
     pieChart.update();
     buildLegend(pie); updateCenter(f,pie);
   }}
   const {{bar:ib,pie:ip}}=getData("all");
-  const gc="rgba(255,255,255,0.07)",tc="#94a3b8";
+  const gc="rgba(0,0,0,0.07)",tc="#94a3b8";
   const barChart=new Chart(document.getElementById("barChart"),{{
     type:"bar",
     data:{{labels:ib.map(d=>d.label),datasets:[{{data:ib.map(d=>d.value),backgroundColor:ib.map(d=>d.color),borderRadius:3}}]}},
@@ -897,11 +897,11 @@ with tab4:
 <style>
   * {{ box-sizing:border-box; font-family:sans-serif; }}
   body {{ margin:0; background:transparent; }}
-  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #4a5568; background:transparent; color:#94a3b8; cursor:pointer; transition:all 0.15s; }}
-  .vbtn.active {{ background:#e2e8f0; color:#0f1117; }}
+  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 0.15s; }}
+  .vbtn.active {{ background:#1e293b; color:#ffffff; }}
   .row {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.75rem; }}
-  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#94a3b8; }}
-  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#94a3b8; }}
+  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#64748b; }}
+  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#64748b; }}
 </style>
 <div class="row">
   <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
@@ -922,7 +922,7 @@ with tab4:
 <script>
   const DAILY = {daily_js};
   const HOURLY = {hourly_js};
-  const tc='#94a3b8', gc='rgba(255,255,255,0.07)';
+  const tc='#64748b', gc='rgba(0,0,0,0.07)';
 
   function makeThresholdLine(threshold) {{
     return function(chart) {{
@@ -958,7 +958,7 @@ with tab4:
 
   function updateStats(vdata) {{
     document.getElementById('statsRow').innerHTML=`
-      <span>Threshold: <b style="color:#f87171;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
+      <span style="color:#475569;">Threshold: <b style="color:#dc2626;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
       <span>Spikes detected: <b style="color:#f87171;">${{vdata.spikes}}</b></span>
       <span>Granularity: ${{vdata.granularity}}</span>`;
   }}
@@ -1136,16 +1136,16 @@ with tab4:
 <style>
   * {{ box-sizing:border-box; font-family:sans-serif; }}
   body {{ margin:0; background:transparent; }}
-  .card {{ background:#1a1d27; border:1px solid #2a2d3a; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; }}
+  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; }}
   .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin:0 0 0.4rem; }}
   .sdesc  {{ font-size:11px; color:#64748b; margin:0 0 0.75rem; }}
   .tbtn {{ padding:3px 10px; font-size:11px; border-radius:6px; cursor:pointer; transition:all 0.15s; }}
   #toggles {{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.75rem; }}
-  .legend-row {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#94a3b8; }}
+  .legend-row {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#64748b; }}
   .dot {{ width:10px; height:10px; border-radius:50%; display:inline-block; }}
   .concl-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }}
-  .concl-card {{ background:#1a1d27; border:1px solid #2a2d3a; border-radius:8px; padding:1rem; }}
-  .bar-bg {{ margin-top:8px; height:4px; background:#2a2d3a; border-radius:2px; }}
+  .concl-card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; }}
+  .bar-bg {{ margin-top:8px; height:4px; background:#e2e8f0; border-radius:2px; }}
   .comp-names {{ margin-top:10px; font-size:11px; color:#64748b; line-height:1.7; }}
 </style>
 
@@ -1172,19 +1172,19 @@ with tab4:
   <div style="position:relative;width:100%;height:300px;"><canvas id="scatterChart"></canvas></div>
 </div>
 
-<div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:1rem;">
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
   <p class="slabel">Step 3 — Conclusion: fixed vs variable split</p>
   <div class="concl-grid">
     <div class="concl-card">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Fixed costs</div>
-      <div style="font-size:22px;font-weight:500;color:#e2e8f0;">${fixed_total:,.0f} <span style="font-size:14px;color:#64748b;">{fixed_pct:.1f}%</span></div>
+      <div style="font-size:22px;font-weight:500;color:#1e293b;">${fixed_total:,.0f} <span style="font-size:14px;color:#64748b;">{fixed_pct:.1f}%</span></div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;">Always-on regardless of usage</div>
       <div class="bar-bg"><div style="width:{fixed_pct:.1f}%;height:4px;background:#534AB7;border-radius:2px;"></div></div>
       <div class="comp-names">{fixed_names_str}</div>
     </div>
     <div class="concl-card">
       <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Variable costs</div>
-      <div style="font-size:22px;font-weight:500;color:#e2e8f0;">${var_total:,.0f} <span style="font-size:14px;color:#64748b;">{var_pct:.1f}%</span></div>
+      <div style="font-size:22px;font-weight:500;color:#1e293b;">${var_total:,.0f} <span style="font-size:14px;color:#64748b;">{var_pct:.1f}%</span></div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;">Scales with research request volume</div>
       <div class="bar-bg"><div style="width:{var_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div></div>
       <div class="comp-names">{var_names_str}</div>
@@ -1220,9 +1220,9 @@ with tab4:
       const btn = document.createElement('button');
       btn.className = 'tbtn';
       btn.textContent = c.label;
-      btn.style.border = `1px solid ${{c.color}}`;
+      btn.style.border = `1px solid ${{c.color}}`;btn.style.fontWeight='500';
       btn.style.background = on ? c.color : 'transparent';
-      btn.style.color = on ? '#0f1117' : c.color;
+      btn.style.color = on ? '#ffffff' : c.color;
       btn.onclick = () => {{
         if(active.has(c.label)) active.delete(c.label); else active.add(c.label);
         chart.data.datasets = buildDatasets();
@@ -1233,7 +1233,7 @@ with tab4:
     }});
   }}
 
-  const gc='rgba(255,255,255,0.07)', tc='#94a3b8';
+  const gc='rgba(0,0,0,0.07)', tc='#64748b';
   const chart = new Chart(document.getElementById('timeChart'), {{
     type:'line',
     data:{{ labels:weeks, datasets:buildDatasets() }},
@@ -1304,7 +1304,7 @@ with tab4:
 
     st.markdown("---")
 st.markdown(
-    "<div style='text-align:center;color:#475569;font-size:0.8rem'>"
+    "<div style='text-align:center;color:#94a3b8;font-size:0.8rem'>"
     "Tavily Research API · Data Analyst Home Assignment · "
     "Data sampled from production · Analysis period: Nov 2025 – Mar 2026"
     "</div>",
