@@ -85,6 +85,8 @@ PLOTLY_THEME = dict(
     plot_bgcolor="#ffffff",
     font_family="DM Sans",
     font_color="#0f172a",
+    xaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
+    yaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
 )
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 
@@ -999,6 +1001,8 @@ with tab4:
         **PLOTLY_THEME, height=280,
         yaxis_title="Cost per research request ($)",
         xaxis_title="Week",
+        xaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a')),
+        yaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a')),
         annotations=[dict(
             x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
             text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
