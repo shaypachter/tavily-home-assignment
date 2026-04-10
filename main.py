@@ -41,7 +41,7 @@ st.markdown("""
     }
     .kpi-label {
         font-size: 0.75rem;
-        color: #64748b;
+        color: #1e293b;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         margin-top: 0.3rem;
@@ -52,7 +52,7 @@ st.markdown("""
     .section-header {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #64748b;
+        color: #1e293b;
         text-transform: uppercase;
         letter-spacing: 0.1em;
         margin: 1.5rem 0 0.8rem 0;
@@ -66,7 +66,7 @@ st.markdown("""
         padding: 0.8rem 1rem;
         margin: 0.5rem 0;
         font-size: 0.88rem;
-        color: #334155;
+        color: #1e293b;
     }
     .insight-box.warning { border-left-color: #f59e0b; }
     .insight-box.success { border-left-color: #4ade80; }
@@ -84,7 +84,7 @@ PLOTLY_THEME = dict(
     paper_bgcolor="#ffffff",
     plot_bgcolor="#ffffff",
     font_family="DM Sans",
-    font_color="#475569",
+    font_color="#1e293b",
 )
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 
@@ -723,8 +723,8 @@ with tab4:
   .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; }}
   .tbtn.active {{ background:#1e293b; color:#ffffff; }}
   .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; }}
-  .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin:0 0 0.75rem; }}
-  #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#64748b; }}
+  .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#1e293b; margin:0 0 0.75rem; }}
+  #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#334155; }}
 </style>
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
   <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
@@ -809,30 +809,6 @@ with tab4:
     st.components.v1.html(html_code, height=480)
 
 
-    # ── Cost over time ────────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Total Cost Trend Over Time (Infrastructure vs Models)</div>', unsafe_allow_html=True)
-
-    ic_daily = ic.copy()
-    ic_daily['date'] = ic_daily['hour'].dt.date
-    daily_costs = ic_daily.groupby('date').agg(
-        infra=('total_infra', 'sum'),
-        model=('total_model', 'sum')
-    ).reset_index()
-
-    fig17 = go.Figure()
-    fig17.add_trace(go.Scatter(x=daily_costs['date'], y=daily_costs['infra'],
-                               name='Infrastructure', fill='tozeroy',
-                               line=dict(color='#6366f1', width=1.5),
-                               fillcolor='rgba(99,102,241,0.2)'))
-    fig17.add_trace(go.Scatter(x=daily_costs['date'], y=daily_costs['model'],
-                               name="Model Cost", fill='tozeroy',
-                               line=dict(color='#f59e0b', width=1.5),
-                               fillcolor='rgba(245,158,11,0.2)'))
-    fig17.update_layout(**PLOTLY_THEME, height=300,
-                        yaxis_title="Daily Cost ($)",
-                        legend=dict(orientation='h', y=1.1))
-    st.plotly_chart(fig17, use_container_width=True)
-
     # ── Cost spikes ───────────────────────────────────────────────────────
     st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
     st.markdown("""
@@ -900,8 +876,8 @@ with tab4:
   .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 0.15s; }}
   .vbtn.active {{ background:#1e293b; color:#ffffff; }}
   .row {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.75rem; }}
-  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#64748b; }}
-  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#64748b; }}
+  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#334155; }}
+  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#334155; }}
 </style>
 <div class="row">
   <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
@@ -922,7 +898,7 @@ with tab4:
 <script>
   const DAILY = {daily_js};
   const HOURLY = {hourly_js};
-  const tc='#64748b', gc='rgba(0,0,0,0.07)';
+  const tc='#334155', gc='rgba(0,0,0,0.07)';
 
   function makeThresholdLine(threshold) {{
     return function(chart) {{
@@ -958,7 +934,7 @@ with tab4:
 
   function updateStats(vdata) {{
     document.getElementById('statsRow').innerHTML=`
-      <span style="color:#475569;">Threshold: <b style="color:#dc2626;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
+      <span style="color:#334155;">Threshold: <b style="color:#dc2626;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
       <span>Spikes detected: <b style="color:#f87171;">${{vdata.spikes}}</b></span>
       <span>Granularity: ${{vdata.granularity}}</span>`;
   }}
@@ -1137,8 +1113,8 @@ with tab4:
   * {{ box-sizing:border-box; font-family:sans-serif; }}
   body {{ margin:0; background:transparent; }}
   .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; }}
-  .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; margin:0 0 0.4rem; }}
-  .sdesc  {{ font-size:11px; color:#64748b; margin:0 0 0.75rem; }}
+  .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#1e293b; margin:0 0 0.4rem; }}
+  .sdesc  {{ font-size:11px; color:#1e293b; margin:0 0 0.75rem; }}
   .tbtn {{ padding:3px 10px; font-size:11px; border-radius:6px; cursor:pointer; transition:all 0.15s; }}
   #toggles {{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.75rem; }}
   .legend-row {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#64748b; }}
@@ -1233,7 +1209,7 @@ with tab4:
     }});
   }}
 
-  const gc='rgba(0,0,0,0.07)', tc='#64748b';
+  const gc='rgba(0,0,0,0.07)', tc='#334155';
   const chart = new Chart(document.getElementById('timeChart'), {{
     type:'line',
     data:{{ labels:weeks, datasets:buildDatasets() }},
