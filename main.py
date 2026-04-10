@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -90,9 +91,14 @@ COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 # ── Data Loading ─────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    rr = pd.read_csv("research_requests.csv")
-    hu = pd.read_csv("hourly_usage.csv")
-    ic = pd.read_csv("infrastructure_costs.csv")
+    def load_file(name):
+        if os.path.exists(f"{name}.csv.gz"):
+            return pd.read_csv(f"{name}.csv.gz", compression="gzip")
+        return pd.read_csv(f"{name}.csv")
+
+    rr = load_file("research_requests")
+    hu = load_file("hourly_usage")
+    ic = load_file("infrastructure_costs")
 
     rr['TIMESTAMP'] = pd.to_datetime(rr['TIMESTAMP'], utc=True)
     hu['HOUR'] = pd.to_datetime(hu['HOUR'], utc=True)
