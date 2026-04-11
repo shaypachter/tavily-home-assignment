@@ -736,7 +736,7 @@ with tab4:
 </div>
 <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
   <div class="card">
-    <p class="slabel">Cost by component</p>
+    <p class="slabel">Cost share by component</p>
     <div style="position:relative;width:100%;height:320px;"><canvas id="barChart"></canvas></div>
   </div>
   <div class="card">
@@ -814,6 +814,14 @@ with tab4:
     # ── Cost spikes ───────────────────────────────────────────────────────
     st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
     st.markdown("""
+    <div class="insight-box" style="border-left-color:#38bdf8;">
+        <b>📋 Assumption:</b> Cost spikes are analyzed by comparing total hourly infrastructure cost against
+        request count. This assumes requests are roughly uniform in complexity — in practice, a few unusually
+        heavy requests (e.g. pro model with 200+ search calls) can drive a cost spike without a corresponding
+        volume spike, and vice versa. A more precise analysis would require request-level cost attribution
+        via the <code>request_cost</code> field in <code>research_requests.csv</code>.
+    </div>""", unsafe_allow_html=True)
+
     import json as _json2
 
     # Daily aggregation
@@ -867,7 +875,7 @@ with tab4:
 <style>
   * {{ box-sizing:border-box; font-family:sans-serif; }}
   body {{ margin:0; background:transparent; }}
-  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 0.15s; }}
+  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 150ms; }}
   .vbtn.active {{ background:#1e293b; color:#ffffff; }}
   .row {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.75rem; }}
   .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#0f172a; }}
@@ -976,7 +984,9 @@ with tab4:
         total_cost=('total_cost','sum'),
         requests=('requests','sum')
     ).reset_index()
+    eff_agg = eff_agg[eff_agg['requests'] > 0]
     eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
+    eff_agg['is_outlier'] = eff_agg['requests'] < 500
 
     fig_eff = go.Figure()
     fig_eff.add_trace(go.Scatter(
@@ -1004,17 +1014,19 @@ with tab4:
     first_cpr = eff_agg['cost_per_req'].iloc[0]
     last_cpr  = eff_agg['cost_per_req'].iloc[-1]
     pct_drop  = (first_cpr - last_cpr) / first_cpr * 100
+    outlier_weeks = eff_agg[eff_agg['is_outlier']]['week'].dt.strftime('%b %d').tolist()
+    outlier_str = ', '.join(outlier_weeks)
     st.markdown(f"""
     <div class="insight-box success">
-        <b>Strong efficiency gains:</b> Cost per research request dropped from
+        <b>✅ Strong efficiency gains:</b> Cost per research request dropped from
         <b>${first_cpr:.2f}</b> in early December to <b>${last_cpr:.2f}</b> by late March —
         a <b>{pct_drop:.0f}% reduction</b> as fixed infrastructure costs are spread across
         a rapidly growing request volume.
     </div>
     <div class="insight-box warning">
-        <b>⚠️ Weeks with &lt;500 requests excluded</b> — low-volume weeks produce
-        misleadingly high cost/request ratios due to fixed overhead dominating.
-        The filter ensures only representative weeks are shown.
+        <b>⚠️ Early launch outliers:</b> Weeks of {outlier_str} show abnormally high cost/request
+        ratios (&gt;$30) due to very low request volume (&lt;500/week) during initial rollout —
+        not representative of steady-state operations.
     </div>""", unsafe_allow_html=True)
 
     # ── Fixed vs variable — interactive section ───────────────────────────
@@ -1108,7 +1120,7 @@ with tab4:
   .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; }}
   .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#0f172a; margin:0 0 0.4rem; }}
   .sdesc  {{ font-size:11px; color:#0f172a; margin:0 0 0.75rem; }}
-  .tbtn {{ padding:3px 10px; font-size:11px; border-radius:6px; cursor:pointer; transition:all 0.15s; }}
+  .tbtn {{ padding:3px 10px; font-size:11px; border-radius:6px; cursor:pointer; transition:all 150ms; }}
   #toggles {{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.75rem; }}
   .legend-row {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#64748b; }}
   .dot {{ width:10px; height:10px; border-radius:50%; display:inline-block; }}
