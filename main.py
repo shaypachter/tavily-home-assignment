@@ -736,7 +736,7 @@ with tab4:
 </div>
 <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
   <div class="card">
-    <p class="slabel">Cost share by component</p>
+    <p class="slabel">Cost by component</p>
     <div style="position:relative;width:100%;height:320px;"><canvas id="barChart"></canvas></div>
   </div>
   <div class="card">
@@ -814,14 +814,6 @@ with tab4:
     # ── Cost spikes ───────────────────────────────────────────────────────
     st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="insight-box" style="border-left-color:#38bdf8;">
-        <b>📋 Assumption:</b> Cost spikes are analyzed by comparing total hourly infrastructure cost against
-        request count. This assumes requests are roughly uniform in complexity — in practice, a few unusually
-        heavy requests (e.g. pro model with 200+ search calls) can drive a cost spike without a corresponding
-        volume spike, and vice versa. A more precise analysis would require request-level cost attribution
-        via the <code>request_cost</code> field in <code>research_requests.csv</code>.
-    </div>""", unsafe_allow_html=True)
-
     import json as _json2
 
     # Daily aggregation
@@ -984,7 +976,7 @@ with tab4:
         total_cost=('total_cost','sum'),
         requests=('requests','sum')
     ).reset_index()
-    eff_agg = eff_agg[eff_agg['requests'] >= 500]
+    eff_agg = eff_agg[eff_agg['requests'] >= 0]
     eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
 
     fig_eff = go.Figure()
@@ -1015,7 +1007,7 @@ with tab4:
     pct_drop  = (first_cpr - last_cpr) / first_cpr * 100
     st.markdown(f"""
     <div class="insight-box success">
-        <b>✅ Strong efficiency gains:</b> Cost per research request dropped from
+        <b>Strong efficiency gains:</b> Cost per research request dropped from
         <b>${first_cpr:.2f}</b> in early December to <b>${last_cpr:.2f}</b> by late March —
         a <b>{pct_drop:.0f}% reduction</b> as fixed infrastructure costs are spread across
         a rapidly growing request volume.
