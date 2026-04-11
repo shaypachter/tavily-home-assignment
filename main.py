@@ -976,7 +976,6 @@ with tab4:
         total_cost=('total_cost','sum'),
         requests=('requests','sum')
     ).reset_index()
-    eff_agg = eff_agg[eff_agg['requests'] >= 500]
     eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
 
     fig_eff = go.Figure()
