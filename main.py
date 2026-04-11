@@ -1002,6 +1002,7 @@ with tab4:
         **PLOTLY_THEME, height=280,
         yaxis_title="Cost per research request ($)",
         xaxis_title="Week",
+        yaxis_type="log",
         annotations=[dict(
             x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
             text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
