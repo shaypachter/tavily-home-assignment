@@ -650,7 +650,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Total Cost</div>
             <div class="kpi-value">${total_cost:,.0f}</div>
-            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">Nov 2025 – Mar 2026</div>
+            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Nov 2025 – Mar 2026</div>
         </div>""", unsafe_allow_html=True)
 
     with k2:
@@ -667,7 +667,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Infrastructure Cost</div>
             <div class="kpi-value">{infra_pct:.1f}%</div>
-            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">${total_infra:,.0f} total</div>
+            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_infra:,.0f} total</div>
             <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{infra_pct:.1f}%;height:4px;background:#6366f1;border-radius:2px;"></div>
             </div>
@@ -678,7 +678,7 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Model Cost</div>
             <div class="kpi-value">{model_pct:.1f}%</div>
-            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">${total_model:,.0f} total</div>
+            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">${total_model:,.0f} total</div>
             <div style="margin-top:8px;height:4px;background:#e2e8f0;border-radius:2px;">
                 <div style="width:{model_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div>
             </div>
@@ -689,12 +689,14 @@ with tab4:
         <div class="kpi-card">
             <div class="kpi-label">Cost per Research Request</div>
             <div class="kpi-value">${median_cost_per_req:.2f}</div>
-            <div style="font-size:0.75rem;color:#0f172a;margin-top:4px;">median (infra + model)</div>
+            <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">median (infra + model)</div>
         </div>""", unsafe_allow_html=True)
 
     st.markdown("")
 
-    # ── Cost breakdown with interactive toggle ────────────────────────────
+
+
+    # ── Cost breakdown with interactive toggle — Q1: Which component dominates? ──
     import json
     component_totals = ic[infra_cols + model_cols].sum().reset_index()
     component_totals.columns = ['component', 'total']
@@ -810,230 +812,9 @@ with tab4:
 """
     st.components.v1.html(html_code, height=480)
 
-
-    # ── Cost spikes ───────────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="insight-box" style="border-left-color:#38bdf8;">
-        <b>📋 Assumption:</b> Cost spikes are analyzed by comparing total hourly infrastructure cost against
-        request count. This assumes requests are roughly uniform in complexity — in practice, a few unusually
-        heavy requests (e.g. pro model with 200+ search calls) can drive a cost spike without a corresponding
-        volume spike, and vice versa. A more precise analysis would require request-level cost attribution
-        via the <code>request_cost</code> field in <code>research_requests.csv</code>.
-    </div>""", unsafe_allow_html=True)
-
-    import json as _json2
-
-    # Daily aggregation
-    merged_spike = ic.copy()
-    merged_spike['hour_naive'] = merged_spike['hour'].dt.tz_localize(None)
-    rr_h = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='requests')
-    rr_h.columns = ['hour', 'requests']
-    merged_spike = merged_spike.merge(rr_h, left_on='hour_naive', right_on='hour', how='left')
-    merged_spike['requests'] = merged_spike['requests'].fillna(0)
-    merged_spike['date'] = pd.to_datetime(merged_spike['hour_naive']).dt.date
-    merged_spike['month'] = pd.to_datetime(merged_spike['hour_naive']).dt.to_period('M').astype(str)
-
-    daily_spike = merged_spike.groupby('date').agg(
-        total_cost=('total_cost','sum'),
-        requests=('requests','sum')
-    ).reset_index()
-    daily_spike = daily_spike[daily_spike['requests'] >= 50]
-
-    mean_d = float(daily_spike['total_cost'].mean())
-    std_d  = float(daily_spike['total_cost'].std())
-    thresh_d = mean_d + 2*std_d
-
-    daily_js = _json2.dumps({
-        'labels': [str(d) for d in daily_spike['date']],
-        'costs':  daily_spike['total_cost'].round(2).tolist(),
-        'reqs':   daily_spike['requests'].astype(int).tolist(),
-        'threshold': round(thresh_d, 2),
-        'spikes': int((daily_spike['total_cost'] > thresh_d).sum())
-    })
-
-    # Hourly by month
-    hourly_js_dict = {}
-    for m in ['2025-12','2026-01','2026-02','2026-03']:
-        sub = merged_spike[merged_spike['month'] == m].copy()
-        sub2 = sub[sub.index % 2 == 0]
-        mean_h = float(sub['total_cost'].mean())
-        std_h  = float(sub['total_cost'].std())
-        thresh_h = mean_h + 2*std_h
-        hourly_js_dict[m] = {
-            'labels':   sub2['hour_naive'].dt.strftime('%d %H:00').tolist(),
-            'costs':    sub2['total_cost'].round(2).tolist(),
-            'requests': sub2['requests'].astype(int).tolist(),
-            'threshold': round(thresh_h, 2),
-            'spikes':   int((sub['total_cost'] > thresh_h).sum())
-        }
-
-    hourly_js = _json2.dumps(hourly_js_dict)
-
-    html_spike = f"""
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<style>
-  * {{ box-sizing:border-box; font-family:sans-serif; }}
-  body {{ margin:0; background:transparent; }}
-  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 150ms; }}
-  .vbtn.active {{ background:#1e293b; color:#ffffff; }}
-  .row {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.75rem; }}
-  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#0f172a; }}
-  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#0f172a; }}
-</style>
-<div class="row">
-  <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
-  <button class="vbtn active" id="btn-daily" onclick="setView('daily')">Daily</button>
-  <span style="font-size:11px;color:#0f172a;">Hourly zoom:</span>
-  <button class="vbtn" id="btn-2025-12" onclick="setView('2025-12')">Dec 2025</button>
-  <button class="vbtn" id="btn-2026-01" onclick="setView('2026-01')">Jan 2026</button>
-  <button class="vbtn" id="btn-2026-02" onclick="setView('2026-02')">Feb 2026</button>
-  <button class="vbtn" id="btn-2026-03" onclick="setView('2026-03')">Mar 2026</button>
-</div>
-<div class="legend">
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#534AB7;display:inline-block;"></span>Total cost</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2σ)</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
-</div>
-<div class="stats" id="statsRow"></div>
-<div style="position:relative;width:100%;height:300px;"><canvas id="spikeChart"></canvas></div>
-<script>
-  const DAILY = {daily_js};
-  const HOURLY = {hourly_js};
-  const tc='#0f172a', gc='rgba(0,0,0,0.07)';
-
-  function makeThresholdLine(threshold) {{
-    return function(chart) {{
-      const ctx2=chart.ctx, xs=chart.scales.x, ys=chart.scales.y;
-      const yPx=ys.getPixelForValue(threshold);
-      if(yPx<ys.top||yPx>ys.bottom) return;
-      ctx2.save(); ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
-      ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
-      ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
-      ctx2.fillText('mean+2σ', xs.right-55, yPx-4); ctx2.restore();
-    }};
-  }}
-
-  function getVdata(view) {{
-    if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (≥50 req/day)' }};
-    const h=HOURLY[view];
-    return {{ ...h, labels:h.labels, costs:h.costs, reqs:h.requests, costUnit:'$/hr', reqUnit:'req/hr', granularity:view+' (hourly, every 2nd point)' }};
-  }}
-
-  function buildDs(vdata) {{
-    return [
-      {{ label:'Total cost', data:vdata.costs, yAxisID:'y',
-        borderColor:'#534AB7', backgroundColor:'rgba(83,74,183,0.08)',
-        borderWidth:1.5, fill:true, tension:0.3, pointRadius:0, pointHoverRadius:4,
-        segment:{{ borderColor:ctx=>vdata.costs[ctx.p1DataIndex]>vdata.threshold?'#f87171':'#534AB7' }}
-      }},
-      {{ label:'Research requests', data:vdata.reqs, yAxisID:'y2',
-        borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.06)',
-        borderWidth:1.5, borderDash:[4,4], fill:true, tension:0.3, pointRadius:0
-      }}
-    ];
-  }}
-
-  function updateStats(vdata) {{
-    document.getElementById('statsRow').innerHTML=`
-      <span style="color:#0f172a;">Threshold: <b style="color:#dc2626;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
-      <span>Spikes detected: <b style="color:#f87171;">${{vdata.spikes}}</b></span>
-      <span>Granularity: ${{vdata.granularity}}</span>`;
-  }}
-
-  function setView(view) {{
-    document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('active'));
-    document.getElementById('btn-'+view).classList.add('active');
-    const vdata=getVdata(view);
-    chart.data.labels=vdata.labels;
-    chart.data.datasets=buildDs(vdata);
-    chart.options.scales.y.afterDraw=makeThresholdLine(vdata.threshold);
-    chart.options.scales.y.title.text='Total cost ('+vdata.costUnit+')';
-    chart.options.scales.y2.title.text='Requests ('+vdata.reqUnit+')';
-    chart.update(); updateStats(vdata);
-  }}
-
-  const initData=getVdata('daily');
-  const chart=new Chart(document.getElementById('spikeChart'),{{
-    type:'line',
-    data:{{labels:initData.labels, datasets:buildDs(initData)}},
-    options:{{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{{legend:{{display:false}}}},
-      scales:{{
-        x:{{ticks:{{color:tc,font:{{size:9}},maxRotation:45,autoSkip:true,maxTicksLimit:20}},grid:{{color:gc}}}},
-        y:{{ticks:{{color:tc,font:{{size:10}},callback:v=>'$'+Math.round(v)}},grid:{{color:gc}},
-           title:{{display:true,text:'Total cost ($/day)',color:tc,font:{{size:10}}}},
-           afterDraw:makeThresholdLine(initData.threshold)}},
-        y2:{{position:'right',ticks:{{color:'#4ade80',font:{{size:10}}}},grid:{{display:false}},
-             title:{{display:true,text:'Requests (req/day)',color:'#4ade80',font:{{size:10}}}}}}
-      }}
-    }}
-  }});
-  updateStats(initData);
-</script>
-"""
-    st.components.v1.html(html_spike, height=420)
-
-        # ── Cost efficiency ───────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Cost Efficiency — Cost per Research Request Over Time (Weekly)</div>', unsafe_allow_html=True)
-
-    eff_weekly = merged_spike.copy()
-    eff_weekly['week'] = pd.to_datetime(eff_weekly['hour_naive']).dt.to_period('W').dt.start_time
-    eff_agg = eff_weekly.groupby('week').agg(
-        total_cost=('total_cost','sum'),
-        requests=('requests','sum')
-    ).reset_index()
-    eff_agg = eff_agg[eff_agg['requests'] > 0]
-    eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
-    eff_agg['is_outlier'] = eff_agg['requests'] < 500
-
-    fig_eff = go.Figure()
-    fig_eff.add_trace(go.Scatter(
-        x=eff_agg['week'], y=eff_agg['cost_per_req'],
-        mode='lines+markers',
-        line=dict(color='#f59e0b', width=2.5),
-        marker=dict(size=6, color='#f59e0b'),
-        fill='tozeroy',
-        fillcolor='rgba(245,158,11,0.08)',
-        hovertemplate='Week of %{x|%b %d}<br>Cost/request: $%{y:.2f}<extra></extra>'
-    ))
-    fig_eff.update_layout(
-        **PLOTLY_THEME, height=280,
-        yaxis_title="Cost per research request ($)",
-        xaxis_title="Week",
-        yaxis_type="log",
-        annotations=[dict(
-            x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
-            text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
-            showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
-            font=dict(color='#f59e0b', size=11)
-        )]
-    )
-    st.plotly_chart(fig_eff, use_container_width=True)
-
-    first_cpr = eff_agg['cost_per_req'].iloc[0]
-    last_cpr  = eff_agg['cost_per_req'].iloc[-1]
-    pct_drop  = (first_cpr - last_cpr) / first_cpr * 100
-    outlier_weeks = eff_agg[eff_agg['is_outlier']]['week'].dt.strftime('%b %d').tolist()
-    outlier_str = ', '.join(outlier_weeks)
-    st.markdown(f"""
-    <div class="insight-box success">
-        <b>✅ Strong efficiency gains:</b> Cost per research request dropped from
-        <b>${first_cpr:.2f}</b> in early December to <b>${last_cpr:.2f}</b> by late March —
-        a <b>{pct_drop:.0f}% reduction</b> as fixed infrastructure costs are spread across
-        a rapidly growing request volume.
-    </div>
-    <div class="insight-box warning">
-        <b>⚠️ Early launch outliers:</b> Weeks of {outlier_str} show abnormally high cost/request
-        ratios (&gt;$30) due to very low request volume (&lt;500/week) during initial rollout —
-        not representative of steady-state operations.
-    </div>""", unsafe_allow_html=True)
-
-    # ── Fixed vs variable — interactive section ───────────────────────────
+    # ── Fixed vs variable — Q2: How much is fixed vs variable? ───────────
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
-    # Compute correlations with hourly research request volume
     import json as _json
     rr_hourly = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='request_count')
     rr_hourly.columns = ['hour', 'request_count']
@@ -1060,7 +841,6 @@ with tab4:
     fixed_pct         = fixed_total / grand_corr_total * 100
     var_pct           = var_total   / grand_corr_total * 100
 
-    # Weekly aggregated data for time series (real data)
     rr_weekly = rr.copy()
     rr_weekly['week'] = rr_weekly['TIMESTAMP'].dt.to_period('W').dt.start_time.dt.tz_localize(None)
     weekly_req = rr_weekly.groupby('week').size().reset_index(name='requests')
@@ -1074,42 +854,28 @@ with tab4:
     weeks_js = _json.dumps([str(w.date()) for w in weekly_merged['week']])
     requests_js = _json.dumps(weekly_merged['requests'].tolist())
 
-    # Build component data for JS
     comp_colors_fixed = ['#534AB7','#7F77DD','#AFA9EC','#9F97E6','#8F85E0','#6A62CC','#3C3489','#CECBF6','#26215C','#4f46e5','#818cf8','#c7d2fe']
     comp_colors_var   = ['#f59e0b','#d97706','#fbbf24','#b45309']
 
     ts_components = []
-    fi = 0
-    vi = 0
-    preset_labels = set()
-    # find largest fixed and largest variable for preset
+    fi = vi = 0
     largest_fixed = corr_df[corr_df['fixed']].nlargest(1,'total')['label'].values[0]
     largest_var   = corr_df[~corr_df['fixed']].nlargest(1,'total')['label'].values[0]
 
     for _, row in corr_df.sort_values('corr').iterrows():
         if row['fixed']:
-            color = comp_colors_fixed[fi % len(comp_colors_fixed)]
-            fi += 1
+            color = comp_colors_fixed[fi % len(comp_colors_fixed)]; fi += 1
         else:
-            color = comp_colors_var[vi % len(comp_colors_var)]
-            vi += 1
+            color = comp_colors_var[vi % len(comp_colors_var)]; vi += 1
         is_preset = row['label'] in [largest_fixed, largest_var]
         data_vals = weekly_merged[row['col']].round(2).tolist()
-        ts_components.append({
-            'label': row['label'],
-            'data': data_vals,
-            'color': color,
-            'preset': is_preset
-        })
+        ts_components.append({'label': row['label'], 'data': data_vals, 'color': color, 'preset': is_preset})
 
     ts_components_js = _json.dumps(ts_components)
-
-    # Scatter data
     scatter_below = [{'label':r['label'],'corr':round(r['corr'],3),'total':round(r['total'],0)} for _,r in corr_df[corr_df['fixed']].iterrows()]
     scatter_above = [{'label':r['label'],'corr':round(r['corr'],3),'total':round(r['total'],0)} for _,r in corr_df[~corr_df['fixed']].iterrows()]
     scatter_below_js = _json.dumps(scatter_below)
     scatter_above_js = _json.dumps(scatter_above)
-
     fixed_names_str = ', '.join(fixed_components)
     var_names_str   = ', '.join(var_components)
 
@@ -1130,7 +896,6 @@ with tab4:
   .bar-bg {{ margin-top:8px; height:4px; background:#e2e8f0; border-radius:2px; }}
   .comp-names {{ margin-top:10px; font-size:11px; color:#0f172a; line-height:1.7; }}
 </style>
-
 <div class="card">
   <p class="slabel">Step 1 — Observed: cost components vs research request volume over time</p>
   <p class="sdesc">Some components stay flat regardless of traffic — others clearly track request volume. Select components to compare:</p>
@@ -1143,7 +908,6 @@ with tab4:
   </div>
   <div style="position:relative;width:100%;height:260px;"><canvas id="timeChart"></canvas></div>
 </div>
-
 <div class="card">
   <p class="slabel">Step 2 — Validated: correlation with research request volume across all components</p>
   <p class="sdesc">A threshold of 0.3 was chosen based on a natural gap in the data — all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
@@ -1153,7 +917,6 @@ with tab4:
   </div>
   <div style="position:relative;width:100%;height:300px;"><canvas id="scatterChart"></canvas></div>
 </div>
-
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
   <p class="slabel">Step 3 — Conclusion: fixed vs variable split</p>
   <div class="concl-grid">
@@ -1173,16 +936,13 @@ with tab4:
     </div>
   </div>
 </div>
-
 <script>
   const weeks = {weeks_js};
   const requestsData = {requests_js};
   const components = {ts_components_js};
   const scatterBelow = {scatter_below_js};
   const scatterAbove = {scatter_above_js};
-
   let active = new Set(components.filter(c=>c.preset).map(c=>c.label));
-
   function buildDatasets() {{
     const ds = components.filter(c=>active.has(c.label)).map(c=>{{
       return {{ label:c.label, data:c.data, borderColor:c.color, backgroundColor:'transparent',
@@ -1193,7 +953,6 @@ with tab4:
       pointRadius:2, fill:true, yAxisID:'y2' }});
     return ds;
   }}
-
   function buildToggles() {{
     const cont = document.getElementById('toggles');
     cont.innerHTML = '';
@@ -1214,7 +973,6 @@ with tab4:
       cont.appendChild(btn);
     }});
   }}
-
   const gc='rgba(0,0,0,0.07)', tc='#0f172a';
   const chart = new Chart(document.getElementById('timeChart'), {{
     type:'line',
@@ -1230,7 +988,6 @@ with tab4:
     }}
   }});
   buildToggles();
-
   const toPoint = (d,i) => ({{ x:d.corr, y:d.total, r:Math.max(5,Math.sqrt(d.total/800)), label:d.label }});
   new Chart(document.getElementById('scatterChart'), {{
     type:'bubble',
@@ -1270,21 +1027,189 @@ with tab4:
 """
     st.components.v1.html(html_fv, height=1050)
 
-    st.markdown(f"""
-    <div class="insight-box danger">
-        <b>🚨 Infrastructure dominates at 95.6%:</b> Model costs are only 4.4% of total spend —
-        the infrastructure layer (EKS clusters, Elasticsearch, Redis) is the primary cost driver by far.
-    </div>
-    <div class="insight-box warning">
-        <b>⚠️ High fixed cost base:</b> {fixed_pct:.1f}% of costs are fixed overhead incurred regardless
-        of request volume — a significant baseline that must be covered even at low utilization.
-    </div>
-    <div class="insight-box success">
-        <b>✅ Model costs scale with usage:</b> GPT-4o and Groq Llama show the strongest correlation
-        with request volume (r &gt; 0.6), making model selection the most actionable lever for cost optimization.
-    </div>""", unsafe_allow_html=True)
+    # ── Cost spikes — Q3: Are there spikes? ──────────────────────────────
+    st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
+    import json as _json2
+    merged_spike = ic.copy()
+    merged_spike['hour_naive'] = merged_spike['hour'].dt.tz_localize(None)
+    rr_h = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='requests')
+    rr_h.columns = ['hour', 'requests']
+    merged_spike = merged_spike.merge(rr_h, left_on='hour_naive', right_on='hour', how='left')
+    merged_spike['requests'] = merged_spike['requests'].fillna(0)
+    merged_spike['date'] = pd.to_datetime(merged_spike['hour_naive']).dt.date
+    merged_spike['month'] = pd.to_datetime(merged_spike['hour_naive']).dt.to_period('M').astype(str)
+
+    daily_spike = merged_spike.groupby('date').agg(
+        total_cost=('total_cost','sum'),
+        requests=('requests','sum')
+    ).reset_index()
+    daily_spike = daily_spike[daily_spike['requests'] >= 50]
+    mean_d = float(daily_spike['total_cost'].mean())
+    std_d  = float(daily_spike['total_cost'].std())
+    thresh_d = mean_d + 2*std_d
+
+    daily_js = _json2.dumps({
+        'labels': [str(d) for d in daily_spike['date']],
+        'costs':  daily_spike['total_cost'].round(2).tolist(),
+        'reqs':   daily_spike['requests'].astype(int).tolist(),
+        'threshold': round(thresh_d, 2),
+        'spikes': int((daily_spike['total_cost'] > thresh_d).sum())
+    })
+
+    hourly_js_dict = {}
+    for m in ['2025-12','2026-01','2026-02','2026-03']:
+        sub = merged_spike[merged_spike['month'] == m].copy()
+        sub2 = sub[sub.index % 2 == 0]
+        mean_h = float(sub['total_cost'].mean())
+        std_h  = float(sub['total_cost'].std())
+        thresh_h = mean_h + 2*std_h
+        hourly_js_dict[m] = {
+            'labels':   sub2['hour_naive'].dt.strftime('%d %H:00').tolist(),
+            'costs':    sub2['total_cost'].round(2).tolist(),
+            'requests': sub2['requests'].astype(int).tolist(),
+            'threshold': round(thresh_h, 2),
+            'spikes':   int((sub['total_cost'] > thresh_h).sum())
+        }
+    hourly_js = _json2.dumps(hourly_js_dict)
+
+    html_spike = f"""
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  * {{ box-sizing:border-box; font-family:sans-serif; }}
+  body {{ margin:0; background:transparent; }}
+  .vbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; transition:all 150ms; }}
+  .vbtn.active {{ background:#1e293b; color:#ffffff; }}
+  .row {{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:0.75rem; }}
+  .legend {{ display:flex; gap:16px; margin-bottom:8px; font-size:11px; color:#0f172a; }}
+  .stats {{ display:flex; gap:16px; margin-bottom:10px; font-size:11px; color:#0f172a; }}
+</style>
+<div class="row">
+  <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
+  <button class="vbtn active" id="btn-daily" onclick="setView('daily')">Daily</button>
+  <span style="font-size:11px;color:#0f172a;">Hourly zoom:</span>
+  <button class="vbtn" id="btn-2025-12" onclick="setView('2025-12')">Dec 2025</button>
+  <button class="vbtn" id="btn-2026-01" onclick="setView('2026-01')">Jan 2026</button>
+  <button class="vbtn" id="btn-2026-02" onclick="setView('2026-02')">Feb 2026</button>
+  <button class="vbtn" id="btn-2026-03" onclick="setView('2026-03')">Mar 2026</button>
+</div>
+<div class="legend">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#534AB7;display:inline-block;"></span>Total cost</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2σ)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
+</div>
+<div class="stats" id="statsRow"></div>
+<div style="position:relative;width:100%;height:300px;"><canvas id="spikeChart"></canvas></div>
+<script>
+  const DAILY = {daily_js};
+  const HOURLY = {hourly_js};
+  const tc='#0f172a', gc='rgba(0,0,0,0.07)';
+  function makeThresholdLine(threshold) {{
+    return function(chart) {{
+      const ctx2=chart.ctx, xs=chart.scales.x, ys=chart.scales.y;
+      const yPx=ys.getPixelForValue(threshold);
+      if(yPx<ys.top||yPx>ys.bottom) return;
+      ctx2.save(); ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
+      ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
+      ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
+      ctx2.fillText('mean+2σ', xs.right-55, yPx-4); ctx2.restore();
+    }};
+  }}
+  function getVdata(view) {{
+    if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (≥50 req/day)' }};
+    const h=HOURLY[view];
+    return {{ ...h, labels:h.labels, costs:h.costs, reqs:h.requests, costUnit:'$/hr', reqUnit:'req/hr', granularity:view+' (hourly, every 2nd point)' }};
+  }}
+  function buildDs(vdata) {{
+    return [
+      {{ label:'Total cost', data:vdata.costs, yAxisID:'y',
+        borderColor:'#534AB7', backgroundColor:'rgba(83,74,183,0.08)',
+        borderWidth:1.5, fill:true, tension:0.3, pointRadius:0, pointHoverRadius:4,
+        segment:{{ borderColor:ctx=>vdata.costs[ctx.p1DataIndex]>vdata.threshold?'#f87171':'#534AB7' }}
+      }},
+      {{ label:'Research requests', data:vdata.reqs, yAxisID:'y2',
+        borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.06)',
+        borderWidth:1.5, borderDash:[4,4], fill:true, tension:0.3, pointRadius:0
+      }}
+    ];
+  }}
+  function updateStats(vdata) {{
+    document.getElementById('statsRow').innerHTML=`
+      <span style="color:#0f172a;">Threshold: <b style="color:#dc2626;">${{vdata.threshold.toFixed(0)}} ${{vdata.costUnit}}</b></span>
+      <span>Spikes detected: <b style="color:#f87171;">${{vdata.spikes}}</b></span>
+      <span>Granularity: ${{vdata.granularity}}</span>`;
+  }}
+  function setView(view) {{
+    document.querySelectorAll('.vbtn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('btn-'+view).classList.add('active');
+    const vdata=getVdata(view);
+    chart.data.labels=vdata.labels;
+    chart.data.datasets=buildDs(vdata);
+    chart.options.scales.y.afterDraw=makeThresholdLine(vdata.threshold);
+    chart.options.scales.y.title.text='Total cost ('+vdata.costUnit+')';
+    chart.options.scales.y2.title.text='Requests ('+vdata.reqUnit+')';
+    chart.update(); updateStats(vdata);
+  }}
+  const initData=getVdata('daily');
+  const chart=new Chart(document.getElementById('spikeChart'),{{
+    type:'line',
+    data:{{labels:initData.labels, datasets:buildDs(initData)}},
+    options:{{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{{legend:{{display:false}}}},
+      scales:{{
+        x:{{ticks:{{color:tc,font:{{size:9}},maxRotation:45,autoSkip:true,maxTicksLimit:20}},grid:{{color:gc}}}},
+        y:{{ticks:{{color:tc,font:{{size:10}},callback:v=>'$'+Math.round(v)}},grid:{{color:gc}},
+           title:{{display:true,text:'Total cost ($/day)',color:tc,font:{{size:10}}}},
+           afterDraw:makeThresholdLine(initData.threshold)}},
+        y2:{{position:'right',ticks:{{color:'#4ade80',font:{{size:10}}}},grid:{{display:false}},
+             title:{{display:true,text:'Requests (req/day)',color:'#4ade80',font:{{size:10}}}}}}
+      }}
+    }}
+  }});
+  updateStats(initData);
+</script>
+"""
+    st.components.v1.html(html_spike, height=420)
+
+    # ── Cost efficiency — Q4: Cost per request over time ─────────────────
+    st.markdown('<div class="section-header">Cost Efficiency — Cost per Research Request Over Time (Weekly)</div>', unsafe_allow_html=True)
+
+    eff_weekly = merged_spike.copy()
+    eff_weekly['week'] = pd.to_datetime(eff_weekly['hour_naive']).dt.to_period('W').dt.start_time
+    eff_agg = eff_weekly.groupby('week').agg(
+        total_cost=('total_cost','sum'),
+        requests=('requests','sum')
+    ).reset_index()
+    eff_agg = eff_agg[eff_agg['requests'] > 0]
+    eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
+    eff_agg['is_outlier'] = eff_agg['requests'] < 500
+
+    fig_eff = go.Figure()
+    fig_eff.add_trace(go.Scatter(
+        x=eff_agg['week'], y=eff_agg['cost_per_req'],
+        mode='lines+markers',
+        line=dict(color='#f59e0b', width=2.5),
+        marker=dict(size=6, color='#f59e0b'),
+        fill='tozeroy',
+        fillcolor='rgba(245,158,11,0.08)',
+        hovertemplate='Week of %{x|%b %d}<br>Cost/request: $%{y:.2f}<extra></extra>'
+    ))
+    fig_eff.update_layout(
+        **PLOTLY_THEME, height=280,
+        yaxis_title="Cost per research request ($)",
+        xaxis_title="Week",
+        yaxis_type="log",
+        annotations=[dict(
+            x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
+            text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
+            showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
+            font=dict(color='#f59e0b', size=11)
+        )]
+    )
+    st.plotly_chart(fig_eff, use_container_width=True)
+
+st.markdown("---")
 st.markdown(
     "<div style='text-align:center;color:#64748b;font-size:0.8rem'>"
     "Tavily Research API · Data Analyst Home Assignment · "
