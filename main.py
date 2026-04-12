@@ -617,9 +617,9 @@ with tab3:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{_p95:.0f}s</div>
             <div class="kpi-label" style="margin-top:6px;">p95 response time</div>
-            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">1 in 20 requests &gt; {_p95/60:.0f} min</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">avg across all weeks · 1 in 20 requests &gt; {_p95/60:.0f} min</div>
             <div style="margin-top:8px;font-size:0.85rem;color:{_p95_color};font-weight:500;">
-                {_p95_arrow} {_recent_p95:.0f}s vs {_early_p95:.0f}s in first 3 weeks
+                {_p95_arrow} {_recent_p95:.0f}s (last 3 weeks) vs {_early_p95:.0f}s (first 3 weeks)
             </div>
         </div>''', unsafe_allow_html=True)
 
@@ -639,34 +639,35 @@ with tab3:
     _pct_trend = data['q3_pct_bad_trend']
     _pct_js = _j.dumps([round(v, 1) for v in _pct_trend])
     with c4:
-        st.components.v1.html(f'''
-        <style>*{{box-sizing:border-box;font-family:sans-serif;}}body{{margin:0;}}</style>
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1.2rem 1.5rem;text-align:center;">
-            <div style="font-size:2rem;font-weight:600;color:#0f172a;font-family:monospace;">{_recent_pct:.1f}%</div>
-            <div style="font-size:0.75rem;color:#0f172a;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.3rem;">% of users failing / week</div>
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{_recent_pct:.1f}%</div>
+            <div class="kpi-label" style="margin-top:6px;">% of users failing / week</div>
             <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">last 3 weeks · failed + cancelled</div>
-            <div style="margin-top:6px;font-size:0.85rem;color:{_pct_color};font-weight:500;">
+            <div style="margin-top:8px;font-size:0.85rem;color:{_pct_color};font-weight:500;">
                 {_pct_arrow} vs {_early_pct:.1f}% in first 3 weeks
             </div>
-            <div style="margin-top:8px;height:36px;position:relative;">
-                <canvas id="pcttrend"></canvas>
+            <div style="margin-top:8px;height:36px;">
+                <canvas id="pcttrend" style="width:100%;height:36px;"></canvas>
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
         <script>
-        new Chart(document.getElementById("pcttrend"),{{
-            type:"line",
-            data:{{labels:{_pct_js}.map((_,i)=>i),datasets:[{{
-                data:{_pct_js},borderColor:"{_pct_color}",borderWidth:2,
-                pointRadius:0,tension:0.4,fill:false
-            }}]}},
-            options:{{responsive:true,maintainAspectRatio:false,
-                plugins:{{legend:{{display:false}},tooltip:{{enabled:false}}}},
-                scales:{{x:{{display:false}},y:{{display:false}}}}
-            }}
-        }});
-        </script>
-        ''', height=180)
+        (function(){{
+            var canvas = document.getElementById("pcttrend");
+            if(!canvas) return;
+            new Chart(canvas, {{
+                type:"line",
+                data:{{labels:{_pct_js}.map((_,i)=>i),datasets:[{{
+                    data:{_pct_js},borderColor:"{_pct_color}",borderWidth:2,
+                    pointRadius:0,tension:0.4,fill:false
+                }}]}},
+                options:{{responsive:false,maintainAspectRatio:false,
+                    plugins:{{legend:{{display:false}},tooltip:{{enabled:false}}}},
+                    scales:{{x:{{display:false}},y:{{display:false}}}}
+                }}
+            }});
+        }})();
+        </script>''', unsafe_allow_html=True)
 
     st.markdown("")
     st.markdown('<div class="section-header">Weekly success rate</div>', unsafe_allow_html=True)
@@ -677,8 +678,8 @@ with tab3:
         fillcolor='rgba(29,158,117,0.07)', marker=dict(size=4),
         hovertemplate='%{x}: %{y:.1%}<extra></extra>',
     ))
-    fig.add_hline(y=0.95, line_dash='dot', line_color='#f59e0b',
-                  annotation_text='95% target', annotation_position='bottom right')
+    fig.add_hline(y=0.99, line_dash='dot', line_color='#f59e0b',
+                  annotation_text='99% · industry benchmark', annotation_position='bottom right')
     fig.update_layout(**PLOTLY_THEME, height=220, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(tickformat='.0%', range=[0.75, 1.02], gridcolor='#f1f5f9', title='Success rate'),
                       xaxis=dict(showgrid=False, tickangle=45, title='Week'))
