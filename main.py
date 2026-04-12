@@ -207,6 +207,22 @@ def load_data():
         'llm_thresh': _llm_thresh,
     }
 
+    # Q3 enhanced KPI card data
+    _weekly_sr = rr_clean.groupby('week_p')['STATUS'].apply(lambda x: (x=='success').mean())
+    q3_early_sr = _weekly_sr.iloc[:3].mean()
+    q3_recent_sr = _weekly_sr.iloc[-3:].mean()
+    q3_n_weeks = len(complete_weeks)
+
+    _rt_p95_weekly = success_only.groupby('week_p')['RESPONSE_TIME_SECONDS'].quantile(0.95)
+    q3_p95_weekly_vals = _rt_p95_weekly.tolist()
+
+    _wfu = rr_clean[rr_clean['STATUS']=='failed'].groupby('week_p')['USER_ID'].nunique()
+    _wcu = rr_clean[rr_clean['STATUS']=='cancelled'].groupby('week_p')['USER_ID'].nunique()
+    _wbu = _wfu.add(_wcu, fill_value=0)
+    q3_early_bad = _wbu.iloc[:3].mean()
+    q3_recent_bad = _wbu.iloc[-3:].mean()
+    q3_bad_trend = _wbu.tolist()
+
     # Dynamic KPI values
     weekly_sr = rr_clean.groupby('week_p')['STATUS'].apply(lambda x: (x=='success').mean())
     last3_sr = weekly_sr.iloc[-3:]
@@ -250,6 +266,13 @@ def load_data():
         power_credit_share=power_credit_share,
         avg_failed_users_per_week=avg_failed_users_per_week,
         pipeline_comparison=pipeline_comparison,
+        q3_early_sr=q3_early_sr,
+        q3_recent_sr=q3_recent_sr,
+        q3_n_weeks=q3_n_weeks,
+        q3_p95_weekly_vals=q3_p95_weekly_vals,
+        q3_early_bad=q3_early_bad,
+        q3_recent_bad=q3_recent_bad,
+        q3_bad_trend=q3_bad_trend,
     )
 
 
@@ -545,15 +568,91 @@ with tab3:
 
     c1, c2, c3, c4 = st.columns(4)
     _p95 = data['p95_overall']
-    _failed_pw = data['avg_failed_users_per_week']
-    for col, val, label, note in [
-        (c1, data['current_sr_str'], "Current success rate", f"up from {data['early_sr_str']} in early Dec"),
-        (c2, f"{_p95:.0f}s", "p95 response time", f"1 in 20 requests > {_p95/60:.0f} min"),
-        (c3, data['p50_range_str'], "Weekly p50 range", "volatile, no clear trend"),
-        (c4, f"~{_failed_pw:.0f}", "Avg users failing per week", "failed + cancelled requests"),
-    ]:
-        with col:
-            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
+    _early_sr = data['q3_early_sr']
+    _recent_sr = data['q3_recent_sr']
+    _sr_arrow = '&#8593;' if _recent_sr > _early_sr else '&#8595;'
+    _sr_color = '#1D9E75' if _recent_sr > _early_sr else '#E24B4A'
+
+    _early_bad = data['q3_early_bad']
+    _recent_bad = data['q3_recent_bad']
+    _bad_arrow = '&#8593;' if _recent_bad > _early_bad else '&#8595;'
+    _bad_color = '#E24B4A' if _recent_bad > _early_bad else '#1D9E75'
+
+    # Box 1: success rate with arrow
+    with c1:
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{data["current_sr_str"]}</div>
+            <div class="kpi-label" style="margin-top:6px;">Current success rate</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">based on last 3 weeks</div>
+            <div style="margin-top:8px;font-size:0.85rem;color:{_sr_color};font-weight:500;">
+                {_sr_arrow} vs {_early_sr:.0%} in first 3 weeks
+            </div>
+        </div>''', unsafe_allow_html=True)
+
+    # Box 2: p95 with mini sparkline
+    with c2:
+        import json as _j
+        _p95_vals = data['q3_p95_weekly_vals']
+        _p95_js = _j.dumps([round(v,1) for v in _p95_vals])
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{_p95:.0f}s</div>
+            <div class="kpi-label" style="margin-top:6px;">p95 response time</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">1 in 20 requests &gt; {_p95/60:.0f} min · weekly trend below</div>
+            <div style="margin-top:8px;height:40px;position:relative;">
+                <canvas id="p95spark" height="40"></canvas>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+        <script>
+        new Chart(document.getElementById("p95spark"), {{
+            type:"line",
+            data:{{labels:{_p95_js}.map((_,i)=>i),datasets:[{{
+                data:{_p95_js},borderColor:"#E24B4A",borderWidth:1.5,
+                pointRadius:0,tension:0.3,fill:false
+            }}]}},
+            options:{{responsive:true,maintainAspectRatio:false,
+                plugins:{{legend:{{display:false}},tooltip:{{enabled:false}}}},
+                scales:{{x:{{display:false}},y:{{display:false}}}}
+            }}
+        }});
+        </script>''', unsafe_allow_html=True)
+
+    # Box 3: p50 range with week count
+    with c3:
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{data["p50_range_str"]}</div>
+            <div class="kpi-label" style="margin-top:6px;">Weekly p50 range</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">volatile across {data["q3_n_weeks"]} weeks · no clear trend</div>
+        </div>''', unsafe_allow_html=True)
+
+    # Box 4: failed users with trend line and arrow
+    with c4:
+        _bad_trend = data['q3_bad_trend']
+        _bad_js = _j.dumps([round(v) for v in _bad_trend])
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">~{_recent_bad:.0f}</div>
+            <div class="kpi-label" style="margin-top:6px;">Avg users failing per week</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">last 3 weeks · failed + cancelled</div>
+            <div style="margin-top:6px;font-size:0.85rem;color:{_bad_color};font-weight:500;">
+                {_bad_arrow} vs ~{_early_bad:.0f} in first 3 weeks
+            </div>
+            <div style="margin-top:6px;height:36px;position:relative;">
+                <canvas id="badtrend" height="36"></canvas>
+            </div>
+        </div>
+        <script>
+        new Chart(document.getElementById("badtrend"), {{
+            type:"line",
+            data:{{labels:{_bad_js}.map((_,i)=>i),datasets:[{{
+                data:{_bad_js},borderColor:"{_bad_color}",borderWidth:1.5,
+                pointRadius:0,tension:0.3,fill:false
+            }}]}},
+            options:{{responsive:true,maintainAspectRatio:false,
+                plugins:{{legend:{{display:false}},tooltip:{{enabled:false}}}},
+                scales:{{x:{{display:false}},y:{{display:false}}}}
+            }}
+        }});
+        </script>''', unsafe_allow_html=True)
 
     st.markdown("")
     st.markdown('<div class="section-header">Weekly success rate</div>', unsafe_allow_html=True)
