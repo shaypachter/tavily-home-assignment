@@ -395,10 +395,9 @@ with tab2:
 
     st.markdown("")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3 = st.columns(3)
     uncharged_count = data['uncharged_count']
     uncharged_cost_abs = data['uncharged_cost']
-    sdf = data['status_stats_df']
 
     with c1:
         st.markdown(f'''<div class="kpi-card">
@@ -409,6 +408,14 @@ with tab2:
 
     with c2:
         st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
+        </div>''', unsafe_allow_html=True)
+
+    with c3:
+        st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
             <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
@@ -416,34 +423,126 @@ with tab2:
             <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
 
-    with c3:
-        total_uncharged_all = int(sdf['uncharged_req'].sum())
-        split_rows = ""
-        for _, r in sdf.iterrows():
-            if r['uncharged_req'] <= 0:
-                continue
-            pct = r['uncharged_req'] / total_uncharged_all * 100
-            split_rows += (
-                f'<div style="display:flex;justify-content:space-between;font-size:11px;'
-                f'color:#64748b;padding:3px 0;border-bottom:0.5px solid #f1f5f9;">'
-                f'<span>{r["status"]}</span>'
-                f'<span style="color:#0f172a;font-weight:500;">{int(r["uncharged_req"]):,}'
-                f' <span style="color:#94a3b8;font-weight:400;">({pct:.0f}%)</span></span>'
-                f'</div>'
-            )
-        st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-label" style="margin-bottom:8px;">Uncharged requests by status</div>
-            {split_rows}
-            <div style="font-size:10px;color:#94a3b8;margin-top:6px;">total {total_uncharged_all:,}</div>
-        </div>''', unsafe_allow_html=True)
+    st.markdown("")
+    st.markdown('<div class="section-header">Uncharged successful requests by plan</div>', unsafe_allow_html=True)
+    pu = data['plan_uncharged_df']
+    pu_rows = ""
+    for _, row in pu.iterrows():
+        share_pct = row['uncharged_count'] / pu['uncharged_count'].sum() * 100
+        pu_rows += (
+            '<tr style="border-bottom:0.5px solid #e2e8f0;">'
+            f'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#0f172a;">{row["PLAN"]}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["uncharged_count"]):,}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["total_count"]):,}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#E24B4A;font-weight:500;">{row["pct"]:.0%}</td>'
+            f'<td style="padding:9px 12px;width:35%;">'
+            f'<div style="position:relative;height:10px;border-radius:3px;background:#E24B4A;width:{share_pct:.1f}%;">'
+            f'<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);font-size:10px;color:#64748b;white-space:nowrap;">{share_pct:.0f}%</span>'
+            f'</div></td>'
+            '</tr>'
+        )
+    th = 'padding:7px 12px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;text-align:left;color:#64748b;'
+    pu_table = (
+        '<table style="width:100%;border-collapse:collapse;">'
+        '<thead><tr style="border-bottom:1px solid #e2e8f0;">'
+        f'<th style="{th}">Plan</th>'
+        f'<th style="{th}">Uncharged requests</th>'
+        f'<th style="{th}">Total requests</th>'
+        f'<th style="{th}">% uncharged</th>'
+        f'<th style="{th}">Share of all uncharged</th>'
+        '</tr></thead>'
+        f'<tbody>{pu_rows}</tbody>'
+        '</table>'
+    )
+    st.markdown(pu_table, unsafe_allow_html=True)
 
-    with c4:
-        st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
-        </div>''', unsafe_allow_html=True)
+    st.markdown("")
+    col_left, col_right = st.columns([1, 2])
+
+    with col_left:
+        st.markdown('<div class="section-header">Cost split: charged vs uncharged</div>', unsafe_allow_html=True)
+        _recovered = data['charged_cost']
+        _uncharged_success = data['uncharged_cost']
+        _fc = data['fc_cost']
+        _total = _recovered + _uncharged_success + _fc
+        fig = go.Figure(go.Pie(
+            labels=[
+                f'Recovered<br>${_recovered:,.0f}',
+                f'Uncharged (success)<br>${_uncharged_success:,.0f}',
+                f'Uncharged (failed/cancelled)<br>${_fc:,.0f}'
+            ],
+            values=[_recovered, _uncharged_success, _fc],
+            hole=0.65, marker_colors=[COLORS['green'], COLORS['red'], COLORS['gray']],
+            textinfo='percent', hovertemplate='%{label}<br>%{percent}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=300, showlegend=True,
+                          legend=dict(orientation='v', x=1.02, y=0.5, font=dict(size=11)),
+                          margin=dict(l=10, r=10, t=10, b=10),
+                          annotations=[dict(text='serving<br>cost', x=0.5, y=0.5, font_size=11, showarrow=False, font_color='#888')])
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_right:
+        st.markdown('<div class="section-header">Successful uncharged requests by plan</div>', unsafe_allow_html=True)
+        pc = data['plan_charge']
+        bar_colors = [COLORS['green'] if r >= 0.8 else COLORS['red'] if r == 0 else COLORS['blue'] for r in pc['charge_rate']]
+        fig = go.Figure(go.Bar(
+            x=pc['charge_rate'], y=pc['plan'], orientation='h', marker_color=bar_colors,
+            text=[f"{v:.0%}" for v in pc['charge_rate']], textposition='outside',
+            hovertemplate='%{y}: %{x:.0%}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=300, margin=dict(l=10, r=10, t=10, b=10),
+                          xaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9', title='% of successful requests charged'),
+                          yaxis=dict(showgrid=False, title='Plan'))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("Findings & recommendation"):
+        st.markdown("""
+**Findings**
+
+The hypothesis is disproved, but revealed a different and bigger issue.
+
+Failed and cancelled requests are a non-issue financially. Despite averaging 78-134 seconds of runtime and consuming LLM and search calls, they account for only 0.13% of total system cost - and the billing system even partially recovers some of that (3,081 credits charged on cancelled jobs).
+
+The leak is hiding in successful requests, which I didn't expect to see as non-paid. Almost 99% of uncharged requests have status = success. 69% of all successful requests - where the system fully completed the job and delivered value - were charged 0 credits. That's 76,818 completed requests representing 72% of total system cost delivered for free.
+
+The growth plan is the only one that charges credits (94% of requests). Other plans receive the product largely for free.
+
+**Recommendation**
+
+Audit the billing trigger logic per plan. Identify whether uncharged requests reflect intentional free-tier allowances or a billing bug. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might also help improve profitability.
+        """)
+
+# ═══════════════════════════════════════════════════════════
+# TAB 3 — TECHNICAL HEALTH
+# ═══════════════════════════════════════════════════════════
+with tab3:
+    st.markdown("### Q3: Is the Research API reliable and consistent enough for production use?")
+    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency increased - making the product less reliable for production builders at a critical stage of adoption.</div>', unsafe_allow_html=True)
+
+    c1, c2, c3 = st.columns(3)
+    for col, val, label, note in [
+        (c1, "97–98%", "Current success rate", "up from 84% in Dec"),
+        (c2, "446s", "p95 response time", "1 in 20 requests > 7 min"),
+        (c3, "52s – 251s", "Weekly p50 range", "volatile, no clear trend"),
+    ]:
+        with col:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
+
+    st.markdown("")
+    st.markdown('<div class="section-header">Weekly success rate</div>', unsafe_allow_html=True)
+    ws = data['weekly_status']
+    fig = go.Figure(go.Scatter(
+        x=ws['week_str'], y=ws['success'], mode='lines+markers',
+        line=dict(color=COLORS['green'], width=2), fill='tozeroy',
+        fillcolor='rgba(29,158,117,0.07)', marker=dict(size=4),
+        hovertemplate='%{x}: %{y:.1%}<extra></extra>',
+    ))
+    fig.add_hline(y=0.95, line_dash='dot', line_color='#f59e0b',
+                  annotation_text='95% target', annotation_position='bottom right')
+    fig.update_layout(**PLOTLY_THEME, height=220, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(tickformat='.0%', range=[0.75, 1.02], gridcolor='#f1f5f9', title='Success rate'),
+                      xaxis=dict(showgrid=False, tickangle=45, title='Week'))
+    st.plotly_chart(fig, use_container_width=True)
 
     col_left, col_right = st.columns(2)
 
