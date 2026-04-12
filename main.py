@@ -268,8 +268,8 @@ with tab1:
             rows_html += f"""
             <tr>
                 <td style="padding:9px 12px;font-size:13px;font-weight:500;color:#0f172a;">{row['plan']}</td>
-                <td style="padding:9px 12px;font-size:13px;font-variant-numeric:tabular-nums;color:#0f172a;">{pct:.0f}%</td>
                 <td style="padding:9px 12px;font-size:12px;color:#64748b;">{count}</td>
+                <td style="padding:9px 12px;font-size:13px;font-variant-numeric:tabular-nums;color:#0f172a;">{pct:.0f}%</td>
                 <td style="padding:9px 12px;width:40%;">
                     <div style="position:relative;height:10px;border-radius:3px;background:{color};width:{pct:.0f}%;">
                         <span style="position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);font-size:11px;color:#64748b;white-space:nowrap;">{pct:.0f}%</span>
@@ -282,9 +282,8 @@ with tab1:
             <thead>
                 <tr style="border-bottom:0.5px solid #e2e8f0;">
                     <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Plan</th>
-                    <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Retention</th>
                     <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Users</th>
-                    <th style="padding:6px 12px;width:40%;"></th>
+                    <th colspan="2" style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Retention</th>
                 </tr>
             </thead>
             <tbody>{rows_html}</tbody>
