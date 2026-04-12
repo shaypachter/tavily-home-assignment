@@ -92,6 +92,7 @@ def load_data():
         retained=('retained', 'first'),
         primary_client=('CLIENT_SOURCE', lambda x: x.mode()[0]),
         w0_requests=('REQUEST_ID', 'count'),
+        used_stream=('STREAM', lambda x: bool(x.any())),
     ).reset_index()
     w0_agg = w0_agg.merge(users_df[['USER_ID', 'PLAN', 'HAS_PAYGO']], on='USER_ID', how='left')
 
@@ -168,6 +169,41 @@ def load_data():
     one_done = (user_weeks_ser == 1).sum()
     power = (user_weeks_ser >= 4).sum()
 
+    # Segment retention for tab1 bar chart
+    w0_seg = w0_agg.copy()
+    w0_seg['is_mcp'] = w0_seg['primary_client'] == 'mcp'
+    seg_values_dynamic = [
+        w0_seg[w0_seg['is_mcp']]['retained'].mean(),
+        w0_seg[~w0_seg['is_mcp']]['retained'].mean(),
+        w0_seg[w0_seg['HAS_PAYGO'] == True]['retained'].mean(),
+        w0_seg[w0_seg['HAS_PAYGO'] == False]['retained'].mean(),
+        w0_seg[~w0_seg['used_stream']]['retained'].mean(),
+        w0_seg[w0_seg['used_stream']]['retained'].mean(),
+    ]
+
+    # Power user credit share
+    _power_ids = user_weeks_ser[user_weeks_ser >= 4].index
+    _power_credits = rr_clean[rr_clean['USER_ID'].isin(_power_ids)]['CREDITS_USED'].sum()
+    _total_credits = rr_clean['CREDITS_USED'].sum()
+    power_credit_share = _power_credits / _total_credits if _total_credits > 0 else 0
+
+    # Dynamic KPI values
+    weekly_sr = rr_clean.groupby('week_p')['STATUS'].apply(lambda x: (x=='success').mean())
+    last3_sr = weekly_sr.iloc[-3:]
+    current_sr_str = f"{last3_sr.min():.0%} - {last3_sr.max():.0%}"
+    early_sr = weekly_sr.iloc[:4].mean()
+    early_sr_str = f"{early_sr:.0%}"
+
+    p95_overall = success_only['RESPONSE_TIME_SECONDS'].quantile(0.95)
+    rt_weekly_p50 = success_only.groupby('week_p')['RESPONSE_TIME_SECONDS'].quantile(0.5)
+    p50_min = rt_weekly_p50.min()
+    p50_max = rt_weekly_p50.max()
+    p50_range_str = f"{p50_min:.0f}s - {p50_max:.0f}s"
+
+    w1_retention = retention[retention['week_num']==1]['retention_rate'].mean()
+
+    credits_cancelled = float(rr_clean[rr_clean['STATUS']=='cancelled']['CREDITS_USED'].sum())
+
     return dict(
         rr=rr, hu=hu, ic=ic,
         infra_cols=infra_cols, model_cols=model_cols,
@@ -184,6 +220,14 @@ def load_data():
         recovery_rate_usd=recovery_rate_usd,
         total_revenue_usd=total_revenue_usd,
         status_stats_df=status_stats_df,
+        current_sr_str=current_sr_str,
+        early_sr_str=early_sr_str,
+        p95_overall=p95_overall,
+        p50_range_str=p50_range_str,
+        w1_retention=w1_retention,
+        credits_cancelled=credits_cancelled,
+        seg_values_dynamic=seg_values_dynamic,
+        power_credit_share=power_credit_share,
     )
 
 
@@ -231,8 +275,8 @@ with tab1:
     c1, c2, c3 = st.columns(3)
     for col, val, label, note in [
         (c1, f"{data['one_done'] / data['total_users']:.0%}", "One-time users", "never return after week 0"),
-        (c2, "22%", "Week-1 retention", "avg across cohorts"),
-        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "active 4+ weeks · generate 79% of credits charged"),
+        (c2, f"{data['w1_retention']:.0%}", "Week-1 retention", "avg across cohorts"),
+        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", f"active 4+ weeks · generate {data['power_credit_share']:.0%} of credits charged"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
@@ -295,7 +339,7 @@ with tab1:
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
     seg_labels = ['MCP users', 'Non-MCP users', 'PayGo enabled', 'No PayGo', 'Non-streaming', 'Streaming']
-    seg_values = [0.322, 0.187, 0.524, 0.238, 0.283, 0.168]
+    seg_values = data['seg_values_dynamic']
     seg_colors = [COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray']]
     fig = go.Figure(go.Bar(
         x=seg_labels, y=seg_values, marker_color=seg_colors,
@@ -360,7 +404,7 @@ with tab2:
         (k1, f"{n_failed:,}", "Failed requests", f"{n_failed/n_total:.1%} of all requests"),
         (k2, f"{n_cancelled:,}", "Cancelled requests", f"{n_cancelled/n_total:.1%} of all requests"),
         (k3, f"{fc_pct_cost:.2%}", "Failed & cancelled share of total cost", "negligible"),
-        (k4, "3,081", "Credits recovered on cancelled requests", "charges do happen here"),
+        (k4, f"{data['credits_cancelled']:,.0f}", "Credits recovered on cancelled requests", "charges do happen here"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
@@ -478,10 +522,11 @@ with tab3:
     st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency increased - making the product less reliable for production builders at a critical stage of adoption.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
+    _p95 = data['p95_overall']
     for col, val, label, note in [
-        (c1, "97-98%", "Current success rate", "up from 84% in Dec"),
-        (c2, "446s", "p95 response time", "1 in 20 requests > 7 min"),
-        (c3, "52s - 251s", "Weekly p50 range", "volatile, no clear trend"),
+        (c1, data['current_sr_str'], "Current success rate", f"up from {data['early_sr_str']} in early Dec"),
+        (c2, f"{_p95:.0f}s", "p95 response time", f"1 in 20 requests > {_p95/60:.0f} min"),
+        (c3, data['p50_range_str'], "Weekly p50 range", "volatile, no clear trend"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
