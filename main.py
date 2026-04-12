@@ -229,7 +229,7 @@ with tab1:
     for col, val, label, note in [
         (c1, f"{data['one_done'] / data['total_users']:.0%}", "One-time users", "never return after week 0"),
         (c2, "22%", "Week-1 retention", "avg across cohorts"),
-        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "active 4 or more weeks"),
+        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "generate 79% of credits charged"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
@@ -271,7 +271,9 @@ with tab1:
                 <td style="padding:9px 12px;font-size:13px;font-variant-numeric:tabular-nums;color:#0f172a;">{pct:.0f}%</td>
                 <td style="padding:9px 12px;font-size:12px;color:#64748b;">{count}</td>
                 <td style="padding:9px 12px;width:40%;">
-                    <div style="height:10px;border-radius:3px;background:{color};width:{pct:.0f}%;"></div>
+                    <div style="position:relative;height:10px;border-radius:3px;background:{color};width:{pct:.0f}%;">
+                        <span style="position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);font-size:11px;color:#64748b;white-space:nowrap;">{pct:.0f}%</span>
+                    </div>
                 </td>
             </tr>"""
 
