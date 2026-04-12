@@ -427,8 +427,9 @@ with tab2:
     with c3:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Revenue / serving cost</div>
-            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users. Est. revenue: ${data["total_revenue_usd"]:,.0f}</div>
+            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
         </div>''', unsafe_allow_html=True)
 
     st.markdown("")
