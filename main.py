@@ -187,6 +187,26 @@ def load_data():
     _total_credits = rr_clean['CREDITS_USED'].sum()
     power_credit_share = _power_credits / _total_credits if _total_credits > 0 else 0
 
+    # Failed users per week
+    _weekly_failed_u = rr_clean[rr_clean['STATUS']=='failed'].groupby('week_p')['USER_ID'].nunique()
+    _weekly_cancel_u = rr_clean[rr_clean['STATUS']=='cancelled'].groupby('week_p')['USER_ID'].nunique()
+    _weekly_bad_u = (_weekly_failed_u.add(_weekly_cancel_u, fill_value=0))
+    avg_failed_users_per_week = _weekly_bad_u.mean()
+
+    # Top 5% vs typical 95% by LLM calls
+    _llm_thresh = success_only['LLM_CALLS'].quantile(0.95)
+    _top5 = success_only[success_only['LLM_CALLS'] >= _llm_thresh]
+    _typ  = success_only[success_only['LLM_CALLS'] < _llm_thresh]
+    pipeline_comparison = {
+        'top5_llm':  _top5['LLM_CALLS'].mean(),
+        'top5_time': _top5['RESPONSE_TIME_SECONDS'].mean(),
+        'top5_cost': _top5['REQUEST_COST'].mean(),
+        'typ_llm':   _typ['LLM_CALLS'].mean(),
+        'typ_time':  _typ['RESPONSE_TIME_SECONDS'].mean(),
+        'typ_cost':  _typ['REQUEST_COST'].mean(),
+        'llm_thresh': _llm_thresh,
+    }
+
     # Dynamic KPI values
     weekly_sr = rr_clean.groupby('week_p')['STATUS'].apply(lambda x: (x=='success').mean())
     last3_sr = weekly_sr.iloc[-3:]
@@ -228,6 +248,8 @@ def load_data():
         credits_cancelled=credits_cancelled,
         seg_values_dynamic=seg_values_dynamic,
         power_credit_share=power_credit_share,
+        avg_failed_users_per_week=avg_failed_users_per_week,
+        pipeline_comparison=pipeline_comparison,
     )
 
 
@@ -521,12 +543,14 @@ with tab3:
     st.markdown("### Q3: Is the Research API reliable and consistent enough for production use?")
     st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency increased - making the product less reliable for production builders at a critical stage of adoption.</div>', unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     _p95 = data['p95_overall']
+    _failed_pw = data['avg_failed_users_per_week']
     for col, val, label, note in [
         (c1, data['current_sr_str'], "Current success rate", f"up from {data['early_sr_str']} in early Dec"),
         (c2, f"{_p95:.0f}s", "p95 response time", f"1 in 20 requests > {_p95/60:.0f} min"),
         (c3, data['p50_range_str'], "Weekly p50 range", "volatile, no clear trend"),
+        (c4, f"~{_failed_pw:.0f}", "Avg users failing per week", "failed + cancelled requests"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
@@ -583,6 +607,36 @@ with tab3:
                           xaxis=dict(showgrid=False, title='Latency percentile'),
                           legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
         st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown('<div class="section-header">Pipeline depth: top 5% vs typical 95% of requests</div>', unsafe_allow_html=True)
+    pc = data['pipeline_comparison']
+    metrics = ['Avg LLM calls', 'Avg response time (s)', 'Avg cost ($)']
+    top5_vals = [pc['top5_llm'], pc['top5_time'], pc['top5_cost']]
+    typ_vals  = [pc['typ_llm'],  pc['typ_time'],  pc['typ_cost']]
+
+    fig_pc = go.Figure()
+    fig_pc.add_trace(go.Bar(
+        name=f"Top 5% (≥{pc['llm_thresh']:.0f} LLM calls)",
+        y=metrics, x=top5_vals, orientation='h',
+        marker_color=COLORS['red'],
+        text=[f"{v:.0f}" for v in top5_vals], textposition='outside',
+        hovertemplate='%{y}<br>Top 5%: %{x:.0f}<extra></extra>',
+    ))
+    fig_pc.add_trace(go.Bar(
+        name='Typical 95%',
+        y=metrics, x=typ_vals, orientation='h',
+        marker_color=COLORS['blue'],
+        text=[f"{v:.0f}" for v in typ_vals], textposition='outside',
+        hovertemplate='%{y}<br>Typical: %{x:.0f}<extra></extra>',
+    ))
+    fig_pc.update_layout(
+        **PLOTLY_THEME, height=260, barmode='group',
+        margin=dict(l=10, r=60, t=10, b=10),
+        xaxis=dict(showgrid=True, gridcolor='#f1f5f9', title='Value'),
+        yaxis=dict(showgrid=False),
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0),
+    )
+    st.plotly_chart(fig_pc, use_container_width=True)
 
     with st.expander("Findings & recommendation"):
         st.markdown("""
