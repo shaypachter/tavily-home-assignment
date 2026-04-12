@@ -24,8 +24,6 @@ st.markdown("""
     .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.2rem 1.5rem; text-align: center; }
     .kpi-value { font-size: 2rem; font-weight: 600; color: #0f172a; font-family: 'DM Mono', monospace; line-height: 1.2; }
     .kpi-label { font-size: 0.75rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem; }
-    .kpi-delta-pos { color: #4ade80; font-size: 0.85rem; }
-    .kpi-delta-neg { color: #f87171; font-size: 0.85rem; }
     .section-header { font-size: 1.1rem; font-weight: 600; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 1.5rem 0 0.8rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #e2e8f0; }
     .insight-box { background: #f8fafc; border-left: 3px solid #6366f1; border-radius: 0 8px 8px 0; padding: 0.8rem 1rem; margin: 0.5rem 0; font-size: 0.88rem; color: #0f172a; }
     .insight-box.warning { border-left-color: #f59e0b; }
@@ -42,10 +40,9 @@ PLOTLY_THEME = dict(
     template="plotly_white", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
     font_family="DM Sans", font_color="#0f172a",
 )
-AXIS_STYLE = dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9')
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
-
 COLORS = {"blue": "#378ADD", "green": "#1D9E75", "red": "#E24B4A", "gray": "#B4B2A9", "purple": "#7F77DD"}
+
 
 @st.cache_data
 def load_data():
@@ -72,7 +69,6 @@ def load_data():
     ic['total_model'] = ic[model_cols].sum(axis=1)
     ic['total_cost'] = ic['total_infra'] + ic['total_model']
 
-    # Q1/Q2/Q3 pre-computations
     rr['week_p'] = rr['TIMESTAMP'].dt.to_period('W')
     complete_weeks = sorted(rr['week_p'].unique())[1:-1]
     rr_clean = rr[rr['week_p'].isin(complete_weeks)].copy()
@@ -148,15 +144,6 @@ def load_data():
     total_revenue_usd = rr_clean['CREDITS_USED'].sum() * CREDIT_TO_USD
     recovery_rate_usd = total_revenue_usd / total_cost_rr
 
-    success_with_plan = success.merge(users_df[['USER_ID','PLAN']], on='USER_ID', how='left')
-    uncharged_success = success[success['CREDITS_USED'] == 0]
-    uncharged_with_plan = uncharged_success.merge(users_df[['USER_ID','PLAN']], on='USER_ID', how='left')
-    plan_uncharged = uncharged_with_plan.groupby('PLAN').size().reset_index(name='uncharged_count')
-    plan_total = success_with_plan.groupby('PLAN').size().reset_index(name='total_count')
-    plan_uncharged_df = plan_uncharged.merge(plan_total, on='PLAN')
-    plan_uncharged_df['pct'] = plan_uncharged_df['uncharged_count'] / plan_uncharged_df['total_count']
-    plan_uncharged_df = plan_uncharged_df.sort_values('uncharged_count', ascending=False)
-
     status_stats = []
     for _s in ['success', 'failed', 'cancelled', 'not_entitled']:
         _sub = rr_clean[rr_clean['STATUS'] == _s]
@@ -197,8 +184,8 @@ def load_data():
         recovery_rate_usd=recovery_rate_usd,
         total_revenue_usd=total_revenue_usd,
         status_stats_df=status_stats_df,
-        plan_uncharged_df=plan_uncharged_df,
     )
+
 
 data = load_data()
 rr = data['rr']
@@ -206,7 +193,6 @@ ic = data['ic']
 infra_cols = data['infra_cols']
 model_cols = data['model_cols']
 
-# Sidebar
 with st.sidebar:
     st.markdown("## 🔬 Research API")
     st.markdown("**Analytics Dashboard**")
@@ -224,12 +210,9 @@ with st.sidebar:
     st.markdown("3. 🩺 Technical health")
     st.markdown("4. 🏗️ Infrastructure costs")
 
-# Header
 st.markdown("# Tavily Research API — Leadership Dashboard")
 st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset · Complete weeks only*")
 st.markdown("---")
-
-
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "📈  Retention",
@@ -327,11 +310,9 @@ with tab1:
     st.markdown('<div class="section-header">Retention rate by week-0 request volume</div>', unsafe_allow_html=True)
     w0r = data['w0_requests_ret']
     fig = go.Figure(go.Bar(
-        x=w0r['bucket'],
-        y=w0r['retention_rate'],
+        x=w0r['bucket'], y=w0r['retention_rate'],
         marker_color='#0C447C',
-        text=[f"{v:.0%}" for v in w0r['retention_rate']],
-        textposition='outside',
+        text=[f"{v:.0%}" for v in w0r['retention_rate']], textposition='outside',
         customdata=w0r['user_count'],
         hovertemplate='%{x} requests: %{y:.0%} retained (%{customdata:,} users)<extra></extra>',
     ))
@@ -365,7 +346,6 @@ with tab2:
     st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
     st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a structural profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
 
-    recovery_rate = data['recovery_rate_usd']
     uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
     uncharged_req_pct = data['uncharged_count'] / data['success_count']
 
@@ -385,36 +365,24 @@ with tab2:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
 
-    insight_html = '<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Their % of total requests and share of total cost is not meaningful and impactful as I thought.</div>'
-    st.markdown(insight_html, unsafe_allow_html=True)
-
+    st.markdown('<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Their % of total requests and share of total cost is not meaningful and impactful as I thought.</div>', unsafe_allow_html=True)
     st.markdown("")
 
-    # Status chart
-
-
-    st.markdown("")
-
+    # ── 3 boxes: c1 = cost recovery | c2 = uncharged requests | c3 = uncharged by status
     c1, c2, c3 = st.columns(3)
     uncharged_count = data['uncharged_count']
     uncharged_cost_abs = data['uncharged_cost']
+    sdf = data['status_stats_df']
 
     with c1:
-        st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{uncharged_pct:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
-        </div>''', unsafe_allow_html=True)
-
-    with c2:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
             <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate)</div>
         </div>''', unsafe_allow_html=True)
 
-    with c3:
+    with c2:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
             <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
@@ -423,48 +391,35 @@ with tab2:
             <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
 
-    st.markdown("")
-    st.markdown('<div class="section-header">Uncharged successful requests by plan</div>', unsafe_allow_html=True)
-    pu = data['plan_uncharged_df']
-    pu_rows = ""
-    for _, row in pu.iterrows():
-        share_pct = row['uncharged_count'] / pu['uncharged_count'].sum() * 100
-        pu_rows += (
-            '<tr style="border-bottom:0.5px solid #e2e8f0;">'
-            f'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#0f172a;">{row["PLAN"]}</td>'
-            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["uncharged_count"]):,}</td>'
-            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["total_count"]):,}</td>'
-            f'<td style="padding:9px 12px;font-size:13px;color:#E24B4A;font-weight:500;">{row["pct"]:.0%}</td>'
-            f'<td style="padding:9px 12px;width:35%;">'
-            f'<div style="position:relative;height:10px;border-radius:3px;background:#E24B4A;width:{share_pct:.1f}%;">'
-            f'<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);font-size:10px;color:#64748b;white-space:nowrap;">{share_pct:.0f}%</span>'
-            f'</div></td>'
-            '</tr>'
-        )
-    th = 'padding:7px 12px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;text-align:left;color:#64748b;'
-    pu_table = (
-        '<table style="width:100%;border-collapse:collapse;">'
-        '<thead><tr style="border-bottom:1px solid #e2e8f0;">'
-        f'<th style="{th}">Plan</th>'
-        f'<th style="{th}">Uncharged requests</th>'
-        f'<th style="{th}">Total requests</th>'
-        f'<th style="{th}">% uncharged</th>'
-        f'<th style="{th}">Share of all uncharged</th>'
-        '</tr></thead>'
-        f'<tbody>{pu_rows}</tbody>'
-        '</table>'
-    )
-    st.markdown(pu_table, unsafe_allow_html=True)
+    with c3:
+        total_uncharged_all = int(sdf['uncharged_req'].sum())
+        split_rows = ""
+        for _, r in sdf.iterrows():
+            if r['uncharged_req'] <= 0:
+                continue
+            pct = r['uncharged_req'] / total_uncharged_all * 100
+            split_rows += (
+                f'<div style="display:flex;justify-content:space-between;font-size:11px;'
+                f'color:#64748b;padding:3px 0;border-bottom:0.5px solid #f1f5f9;">'
+                f'<span>{r["status"]}</span>'
+                f'<span style="color:#0f172a;font-weight:500;">{int(r["uncharged_req"]):,}'
+                f' <span style="color:#94a3b8;font-weight:400;">({pct:.0f}%)</span></span>'
+                f'</div>'
+            )
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-label" style="margin-bottom:8px;">Uncharged requests by status</div>
+            {split_rows}
+            <div style="font-size:10px;color:#94a3b8;margin-top:6px;">total {total_uncharged_all:,}</div>
+        </div>''', unsafe_allow_html=True)
 
     st.markdown("")
     col_left, col_right = st.columns([1, 2])
 
     with col_left:
-        st.markdown('<div class="section-header">Cost split: charged vs uncharged</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Cost split: charged / uncharged</div>', unsafe_allow_html=True)
         _recovered = data['charged_cost']
         _uncharged_success = data['uncharged_cost']
         _fc = data['fc_cost']
-        _total = _recovered + _uncharged_success + _fc
         fig = go.Figure(go.Pie(
             labels=[
                 f'Recovered<br>${_recovered:,.0f}',
@@ -482,7 +437,7 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
-        st.markdown('<div class="section-header">Successful uncharged requests by plan</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Charge rate by plan - % of successful requests billed</div>', unsafe_allow_html=True)
         pc = data['plan_charge']
         bar_colors = [COLORS['green'] if r >= 0.8 else COLORS['red'] if r == 0 else COLORS['blue'] for r in pc['charge_rate']]
         fig = go.Figure(go.Bar(
@@ -521,9 +476,9 @@ with tab3:
 
     c1, c2, c3 = st.columns(3)
     for col, val, label, note in [
-        (c1, "97–98%", "Current success rate", "up from 84% in Dec"),
+        (c1, "97-98%", "Current success rate", "up from 84% in Dec"),
         (c2, "446s", "p95 response time", "1 in 20 requests > 7 min"),
-        (c3, "52s – 251s", "Weekly p50 range", "volatile, no clear trend"),
+        (c3, "52s - 251s", "Weekly p50 range", "volatile, no clear trend"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
@@ -547,7 +502,7 @@ with tab3:
     col_left, col_right = st.columns(2)
 
     with col_left:
-        st.markdown('<div class="section-header">Weekly latency — p50 vs p95 (seconds)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Weekly latency - p50 vs p95 (seconds)</div>', unsafe_allow_html=True)
         rt = data['rt_weekly']
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=rt['week_str'], y=rt['p50'], name='p50', mode='lines+markers',
@@ -563,7 +518,7 @@ with tab3:
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
-        st.markdown('<div class="section-header">Mini vs pro — latency profile</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Mini vs pro - latency profile</div>', unsafe_allow_html=True)
         ml = data['model_latency']
         ml = ml[ml['MODEL'].isin(['mini', 'pro'])]
         fig = go.Figure()
@@ -791,7 +746,6 @@ with tab4:
 """
     st.components.v1.html(html_code, height=480)
 
-    # Fixed vs variable
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
     import json as _json
@@ -876,8 +830,8 @@ with tab4:
   .comp-names {{ margin-top:10px; font-size:11px; color:#0f172a; line-height:1.7; }}
 </style>
 <div class="card">
-  <p class="slabel">Step 1 — Observed: cost components vs research request volume over time</p>
-  <p class="sdesc">Some components stay flat regardless of traffic — others clearly track request volume. Select components to compare:</p>
+  <p class="slabel">Step 1 - Observed: cost components vs research request volume over time</p>
+  <p class="sdesc">Some components stay flat regardless of traffic - others clearly track request volume. Select components to compare:</p>
   <div id="toggles"></div>
   <div class="legend-row">
     <span style="display:flex;align-items:center;gap:4px;">
@@ -888,8 +842,8 @@ with tab4:
   <div style="position:relative;width:100%;height:260px;"><canvas id="timeChart"></canvas></div>
 </div>
 <div class="card">
-  <p class="slabel">Step 2 — Validated: correlation with research request volume across all components</p>
-  <p class="sdesc">A threshold of 0.3 was chosen based on a natural gap in the data — all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
+  <p class="slabel">Step 2 - Validated: correlation with research request volume across all components</p>
+  <p class="sdesc">A threshold of 0.3 was chosen based on a natural gap in the data - all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
   <div class="legend-row">
     <span style="display:flex;align-items:center;gap:4px;"><span class="dot" style="background:#534AB7;"></span>Below threshold</span>
     <span style="display:flex;align-items:center;gap:4px;"><span class="dot" style="background:#f59e0b;"></span>Above threshold</span>
@@ -897,7 +851,7 @@ with tab4:
   <div style="position:relative;width:100%;height:300px;"><canvas id="scatterChart"></canvas></div>
 </div>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
-  <p class="slabel">Step 3 — Conclusion: fixed vs variable split</p>
+  <p class="slabel">Step 3 - Conclusion: fixed vs variable split</p>
   <div class="concl-grid">
     <div class="concl-card">
       <div style="font-size:12px;color:#0f172a;margin-bottom:4px;">Fixed costs</div>
@@ -984,7 +938,7 @@ with tab4:
       }},
       scales:{{
         x:{{ min:0, max:0.75,
-          title:{{ display:true, text:'Correlation with research request volume →', color:tc, font:{{size:10}} }},
+          title:{{ display:true, text:'Correlation with research request volume', color:tc, font:{{size:10}} }},
           ticks:{{ color:tc, font:{{size:10}} }}, grid:{{ color:gc }},
           afterDraw(chart) {{
             const ctx2=chart.ctx, xs=chart.scales.x, ys=chart.scales.y;
@@ -1006,8 +960,7 @@ with tab4:
 """
     st.components.v1.html(html_fv, height=1050)
 
-    # Cost spikes
-    st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Cost Spikes - Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
     import json as _json2
     merged_spike = ic.copy()
@@ -1074,7 +1027,7 @@ with tab4:
 </div>
 <div class="legend">
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#534AB7;display:inline-block;"></span>Total cost</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2σ)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2sigma)</span>
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
 </div>
 <div class="stats" id="statsRow"></div>
@@ -1092,11 +1045,11 @@ with tab4:
       ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
       ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
       ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
-      ctx2.fillText('mean+2σ', xs.right-55, yPx-4); ctx2.restore();
+      ctx2.fillText('mean+2sigma', xs.right-70, yPx-4); ctx2.restore();
     }};
   }}
   function getVdata(view) {{
-    if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (≥50 req/day)' }};
+    if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (>=50 req/day)' }};
     const h=HOURLY[view];
     return {{ ...h, labels:h.labels, costs:h.costs, reqs:h.requests, costUnit:'$/hr', reqUnit:'req/hr', granularity:view+' (hourly, every 2nd point)' }};
   }}
@@ -1152,8 +1105,7 @@ with tab4:
 """
     st.components.v1.html(html_spike, height=420)
 
-    # Cost efficiency
-    st.markdown('<div class="section-header">Cost Efficiency — Cost per Research Request Over Time (Weekly)</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">Cost Efficiency - Cost per Research Request Over Time (Weekly)</div>', unsafe_allow_html=True)
 
     eff_weekly = merged_spike.copy()
     eff_weekly['week'] = pd.to_datetime(eff_weekly['hour_naive']).dt.to_period('W').dt.start_time
