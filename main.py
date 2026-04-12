@@ -100,7 +100,7 @@ def load_data():
 
     plan_ret = (
         w0_agg.groupby('PLAN')['retained'].agg(['mean', 'count']).reset_index()
-        .rename(columns={'mean': 'retention_rate', 'count': 'user_count'})
+        .rename(columns={'PLAN': 'plan', 'mean': 'retention_rate', 'count': 'user_count'})
         .sort_values('retention_rate', ascending=False)
     )
 
@@ -108,6 +108,7 @@ def load_data():
     plan_stats = success.merge(users_df[['USER_ID', 'PLAN']], on='USER_ID', how='left')
     plan_charge = plan_stats.groupby('PLAN').apply(lambda x: (x['CREDITS_USED'] > 0).mean()).reset_index()
     plan_charge.columns = ['plan', 'charge_rate']
+    plan_charge['plan'] = plan_charge['plan'].astype(str)
     plan_charge = plan_charge.sort_values('charge_rate', ascending=False)
 
     weekly_status = (
