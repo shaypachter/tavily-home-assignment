@@ -388,13 +388,48 @@ with tab2:
     c1, c2, c3 = st.columns(3)
     uncharged_count = data['uncharged_count']
     uncharged_cost_abs = data['uncharged_cost']
-    for col, val, label, note in [
-        (c1, f"{uncharged_req_pct:.0%} of successful requests ({uncharged_count:,})", "Successful but uncharged", "charged 0 credits despite full delivery"),
-        (c2, f"{uncharged_pct:.0%}", "Cost delivered free (USD)", f"~${uncharged_cost_abs:,.0f} in serving cost (REQUEST_COST)"),
-        (c3, f"{data['recovery_rate_usd']:.0%}", "Revenue / serving cost", f"* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users. Est. revenue: ${data['total_revenue_usd']:,.0f}"),
-    ]:
-        with col:
-            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
+
+    with c1:
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{uncharged_req_pct:.0%}</div>
+            <div style="font-size:1rem;font-weight:500;color:#0f172a;font-family:DM Mono,monospace;margin-top:2px;">of successful requests</div>
+            <div style="font-size:0.85rem;color:#64748b;margin-top:2px;">({uncharged_count:,} requests)</div>
+            <div class="kpi-label" style="margin-top:6px;">Successful but uncharged</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
+        </div>''', unsafe_allow_html=True)
+
+    with c2:
+        sdf = data['status_stats_df']
+        bar_rows = ""
+        bar_colors = {'success': '#E24B4A', 'failed': '#B4B2A9', 'cancelled': '#B4B2A9', 'not_entitled': '#B4B2A9'}
+        total_unrecovered = sum(sdf['unrecovered'])
+        for _, r in sdf.iterrows():
+            if r['unrecovered'] <= 0:
+                continue
+            pct = r['unrecovered'] / total_unrecovered * 100
+            color = bar_colors.get(r['status'], '#B4B2A9')
+            bar_rows += (
+                f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
+                f'<div style="font-size:10px;color:#64748b;width:70px;flex-shrink:0;">{r["status"]}</div>'
+                f'<div style="flex:1;background:#f1f5f9;border-radius:3px;height:8px;">'
+                f'<div style="width:{pct:.1f}%;background:{color};height:8px;border-radius:3px;"></div>'
+                f'</div>'
+                f'<div style="font-size:10px;color:#64748b;width:50px;text-align:right;">${r["unrecovered"]:,.0f}</div>'
+                f'</div>'
+            )
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{uncharged_pct:.0%}</div>
+            <div style="font-size:0.8rem;color:#64748b;margin-top:2px;">~${uncharged_cost_abs:,.0f} unrecovered (USD)</div>
+            <div class="kpi-label" style="margin-top:8px;margin-bottom:6px;">Cost delivered free — by status</div>
+            {bar_rows}
+        </div>''', unsafe_allow_html=True)
+
+    with c3:
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Revenue / serving cost</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users. Est. revenue: ${data["total_revenue_usd"]:,.0f}</div>
+        </div>''', unsafe_allow_html=True)
 
     st.markdown("")
     col_left, col_right = st.columns([1, 2])
