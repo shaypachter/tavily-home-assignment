@@ -376,19 +376,17 @@ with tab2:
 
     with c1:
         st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate)</div>
+            <div class="kpi-value">{uncharged_pct:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
         </div>''', unsafe_allow_html=True)
 
     with c2:
         st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{uncharged_req_pct:.0%}</div>
-            <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
-            <div class="kpi-label" style="margin-top:6px;">Successful but uncharged</div>
-            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
+            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate)</div>
         </div>''', unsafe_allow_html=True)
 
     with c3:
@@ -414,9 +412,11 @@ with tab2:
 
     with c4:
         st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{uncharged_pct:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
+            <div class="kpi-value">{uncharged_req_pct:.0%}</div>
+            <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
+            <div class="kpi-label" style="margin-top:6px;">Successful but uncharged</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
 
     st.markdown("")
@@ -444,7 +444,7 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
-        st.markdown('<div class="section-header">Charge rate by plan - % of successful requests billed</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">% of successful requests charged by plan</div>', unsafe_allow_html=True)
         pc = data['plan_charge']
         bar_colors = [COLORS['green'] if r >= 0.8 else COLORS['red'] if r == 0 else COLORS['blue'] for r in pc['charge_rate']]
         fig = go.Figure(go.Bar(
