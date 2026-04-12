@@ -418,10 +418,26 @@ with tab2:
                 f'<div style="font-size:10px;color:#64748b;width:50px;text-align:right;">${r["unrecovered"]:,.0f}</div>'
                 f'</div>'
             )
+        sdf = data['status_stats_df']
+        total_unrecovered = sum(r['unrecovered'] for _, r in sdf.iterrows())
+        success_unrecovered = float(sdf[sdf['status']=='success']['unrecovered'].iloc[0])
+        success_pct = success_unrecovered / total_unrecovered * 100
+        other_pct = 100 - success_pct
+        stacked_bar = (
+            '<div style="display:flex;border-radius:3px;overflow:hidden;height:8px;margin-top:10px;margin-bottom:6px;">'
+            f'<div style="width:{success_pct:.1f}%;background:#E24B4A;"></div>'
+            f'<div style="width:{other_pct:.1f}%;background:#B4B2A9;"></div>'
+            '</div>'
+            '<div style="display:flex;gap:12px;font-size:10px;color:#64748b;">'
+            f'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#E24B4A;margin-right:3px;"></span>success ${success_unrecovered:,.0f} ({success_pct:.0f}%)</span>'
+            f'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#B4B2A9;margin-right:3px;"></span>other ${total_unrecovered-success_unrecovered:,.0f} ({other_pct:.0f}%)</span>'
+            '</div>'
+        )
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_pct:.0%}</div>
             <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
+            {stacked_bar}
         </div>''', unsafe_allow_html=True)
 
     with c3:
@@ -436,16 +452,25 @@ with tab2:
     col_left, col_right = st.columns([1, 2])
 
     with col_left:
-        st.markdown('<div class="section-header">Where the cost goes</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">How is the total serving cost split?</div>', unsafe_allow_html=True)
+        _recovered = data['charged_cost']
+        _uncharged_success = data['uncharged_cost']
+        _fc = data['fc_cost']
+        _total = _recovered + _uncharged_success + _fc
         fig = go.Figure(go.Pie(
-            labels=['Recovered', 'Uncharged success', 'Failed/cancelled'],
-            values=[data['charged_cost'], data['uncharged_cost'], data['fc_cost']],
+            labels=[
+                f'Recovered<br>${_recovered:,.0f}',
+                f'Uncharged (success)<br>${_uncharged_success:,.0f}',
+                f'Uncharged (failed/cancelled)<br>${_fc:,.0f}'
+            ],
+            values=[_recovered, _uncharged_success, _fc],
             hole=0.65, marker_colors=[COLORS['green'], COLORS['red'], COLORS['gray']],
-            textinfo='label+percent', hovertemplate='%{label}: %{percent}<extra></extra>',
+            textinfo='percent', hovertemplate='%{label}<br>%{percent}<extra></extra>',
         ))
-        fig.update_layout(**PLOTLY_THEME, height=300, showlegend=False,
+        fig.update_layout(**PLOTLY_THEME, height=300, showlegend=True,
+                          legend=dict(orientation='v', x=1.02, y=0.5, font=dict(size=11)),
                           margin=dict(l=10, r=10, t=10, b=10),
-                          annotations=[dict(text='cost split', x=0.5, y=0.5, font_size=12, showarrow=False, font_color='#888')])
+                          annotations=[dict(text='serving<br>cost', x=0.5, y=0.5, font_size=11, showarrow=False, font_color='#888')])
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
