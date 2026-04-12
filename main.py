@@ -211,7 +211,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ═══════════════════════════════════════════════════════════
 with tab1:
     st.markdown("### Q1: Does the Research API retain users after their first week?")
-    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Most users treat the API as a one-time experiment. Users who arrive with a real integration — signaled by client source, usage depth, and plan type — retain at significantly higher rates.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Most users treat the Research API as a one-time experiment rather than integrating it into a recurring workflow. Users who arrive with a real integration — signaled by their client source, usage depth, and plan type — will retain at significantly higher rates.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
     for col, val, label, note in [
@@ -270,15 +270,16 @@ with tab1:
     with st.expander("Findings & recommendation"):
         st.markdown("""
 **Findings**
-- **74%** of users never return after week 0. Week-1 retention averages **22%**. Only **4.8%** qualify as power users (4+ weeks active).
-- Plan is the strongest predictor: enterprise retains 100%, but `researcher` (96% of users) retains only **25%**.
-- PayGo-enabled users retain at **2× the rate** (52% vs 24%) — they have skin in the game.
-- MCP users retain at **1.7×** (32% vs 19%) — they've embedded the API into a real tool.
-- Streaming users churn more (17% vs 28%) — a quick-test behavior, not a production pattern.
+- Approximately **74%** of users are one-time users, while average week-1 retention across cohorts is around **22%**, and only **4.8%** qualify as power users (active for four or more weeks).
+- Plan type is the strongest predictor: enterprise retains 100%, bootstrap/growth/project retain 50–76%, but `researcher` (96% of users) retains only **25%**. The product is largely being tested by low-tier users who don't convert.
+- Pay As You Go enabled = **double the retention rate** — users with PayGo retain at 52% vs 24%. These users have a vested interest and are more likely to develop production-grade workflows.
+- MCP integration = **1.7× retention** — MCP users retain at 32% vs 19%. MCP users have already embedded the API into a tool, meaning they're builders, not explorers.
+- More requests in week 0 = higher retention. Going from 1 to 6–10 requests in the first week lifts retention from 21% → 35%. Early depth predicts stickiness.
+- Streaming users churn more — 17% vs 28%. Streaming is likely a quick-test behavior, not a production integration pattern.
 
 **Recommendation**
 
-Focus onboarding on driving users toward a real integration in week 0 — push toward MCP setup and structured output usage. Identify `researcher`-plan users who behave like builders (high week-0 volume) for upgrade prompts.
+The users who integrate properly (MCP, PayGo, higher plans) retain well. The issue is that most users never reach the point where the product becomes useful in their workflow. Focus onboarding on driving users toward a real integration — specifically push toward MCP setup and structured output usage, and identify `researcher`-plan users who look like builders (high week-0 volume) for upgrade prompts. Those users seem to be on the wrong plan.
         """)
 
 # ═══════════════════════════════════════════════════════════
@@ -286,7 +287,7 @@ Focus onboarding on driving users toward a real integration in week 0 — push t
 # ═══════════════════════════════════════════════════════════
 with tab2:
     st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
-    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing — representing unrecovered cost.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a structural profitability leak. Finding the reasons for cancellations or failures might help improve profitability.</div>', unsafe_allow_html=True)
 
     recovery_rate = data['charged_cost'] / data['total_cost_rr']
     uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
@@ -335,15 +336,17 @@ with tab2:
         st.markdown("""
 **Findings**
 
-The hypothesis is disproved — but what we found instead is far more significant.
+The hypothesis is disproved — but revealed a different and bigger issue.
 
-Failed and cancelled requests account for only **0.13% of total system cost**. The real leak is in **successful** requests: **69.7%** of all completed requests were charged 0 credits. That's **72% of total system cost** delivered for free. The company recovers only **~28 cents of every dollar** spent.
+Failed and cancelled requests are a non-issue financially. Despite averaging 78–134 seconds of runtime and consuming LLM and search calls, they account for only **0.13% of total system cost** — and the billing system even partially recovers some of that (3,081 credits charged on cancelled jobs).
 
-The `growth` plan is the only one with functioning billing (94% charged). Every other plan, including `enterprise`, receives the product largely for free.
+The leak is hiding in successful requests, which I didn't expect to see as non-paid. Almost 99% of uncharged requests have status = success. **69% of all successful requests** — where the system fully completed the job and delivered value — were charged 0 credits. That's 76,818 completed requests representing **72% of total system cost** delivered for free.
+
+The `growth` plan is the only one that charges credits (94% of requests). Every other plan receives the product largely for free.
 
 **Recommendation**
 
-Audit the billing trigger logic per plan. Identify whether uncharged requests reflect intentional free-tier allowances or a billing bug. The `not_entitled` signal (122 users hitting credit walls with no PayGo fallback) confirms demand exists — these are willing users with no path to pay more.
+Audit the billing trigger logic per plan. Identify whether uncharged requests reflect intentional free-tier allowances or a billing bug. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might also help improve profitability.
         """)
 
 # ═══════════════════════════════════════════════════════════
@@ -351,7 +354,7 @@ Audit the billing trigger logic per plan. Identify whether uncharged requests re
 # ═══════════════════════════════════════════════════════════
 with tab3:
     st.markdown("### Q3: Is the Research API reliable and consistent enough for production use?")
-    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency degraded.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency increased — making the product less reliable for production builders at a critical stage of adoption.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
     for col, val, label, note in [
@@ -419,15 +422,17 @@ with tab3:
         st.markdown("""
 **Findings**
 
-The hypothesis is disproved — reliability improved over time. Success rates stabilized at **97–98%** by March, up from 84–95% in Dec/Jan.
+The hypothesis is disproved — reliability actually improved over time. Success rates started volatile (84–95% in Dec/Jan) and stabilized at **97–98%** by March. That said, keep working on the 2–3% failure rate — at current volume that's still 200–300 real users failing per week.
 
-Latency tells a different story. The p50 bounces between **52s and 251s** week-to-week with no clear trend. The p95 sits at **446 seconds** — 1 in 20 requests takes over 7 minutes.
+Latency tells a different story. The p50 response time is wildly inconsistent week to week — bouncing between **52s and 251s** with no clear trend. The p95 sits at **446 seconds**, meaning 1 in 20 requests takes over 7 minutes. For a developer setting API timeouts, that might be a hard limitation — worth further investigation.
 
-The top 5% of requests (35+ LLM calls) run **2.3× slower** at **2.7× the cost** — either genuinely harder queries or the pipeline looping unnecessarily. Mini and pro are effectively two different products: mini (p50: 34s, p95: 75s) vs pro (p50: 306s, p95: 512s).
+The top 5% of successful requests consume about 35 LLM calls and run **2.3× slower** (374s vs 160s) at **2.7× the cost** ($204 vs $77) compared to typical requests. Either those are genuinely harder queries, or the pipeline is looping unnecessarily.
+
+Model profiles are very different and that matters for user expectations. Mini demonstrates high reliability and low latency (96.2% success rate; p50: 34s, p95: 75s) with relatively few LLM calls (7 on average). In contrast, Pro has a slightly lower success rate (94.9%), substantially higher latency (p50: 306s, p95: 512s), and requires more LLM calls (25 on average) — resulting in a slower experience with a long-tail distribution.
 
 **Recommendation**
 
-Cap LLM calls per request to contain the tail. Document mini vs pro expectations explicitly. Investigate p50 volatility by correlating with infrastructure cost data. Keep pushing on the 2–3% failure rate — at current volume that's 200–300 users failing per week.
+Cap LLM calls per request to contain the tail. Document mini vs pro differences explicitly — users need to know before they pick. Investigate the p50 volatility by correlating with infrastructure cost data. Keep pushing on the 2–3% failure rate.
         """)
 
 # ════════════════════════════════════════════════════════════════════════════
