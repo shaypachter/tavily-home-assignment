@@ -328,12 +328,13 @@ The users who integrate properly (MCP, PayGo, higher plans) retain well. The iss
 # ═══════════════════════════════════════════════════════════
 with tab2:
     st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
-    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a structural profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a structural profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
 
     recovery_rate = data['charged_cost'] / data['total_cost_rr']
     uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
     uncharged_req_pct = data['uncharged_count'] / data['success_count']
 
+    st.markdown('<div class="section-header">Step 1 — checking the hypothesis: failed & cancelled requests</div>', unsafe_allow_html=True)
     rr_clean = data['rr_clean']
     n_failed = int((rr_clean['STATUS'] == 'failed').sum())
     n_cancelled = int((rr_clean['STATUS'] == 'cancelled').sum())
@@ -350,9 +351,10 @@ with tab2:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
 
-    insight_html = '<div class="insight-box warning" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Failed and cancelled requests are a non-issue financially - despite averaging 78-134s of runtime and consuming real LLM and search calls.</div>'
+    insight_html = '<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Failed and cancelled requests are a non-issue financially - despite averaging 78-134s of runtime and consuming real LLM and search calls.</div>'
     st.markdown(insight_html, unsafe_allow_html=True)
 
+    st.markdown('<div class="section-header">Step 2 — so where is the money going?</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
     uncharged_count = data['uncharged_count']
