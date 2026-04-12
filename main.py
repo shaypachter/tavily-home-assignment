@@ -429,15 +429,16 @@ with tab2:
             labels=[
                 f'Recovered<br>${_recovered:,.0f}',
                 f'Uncharged (success)<br>${_uncharged_success:,.0f}',
-                f'Uncharged (failed/cancelled)<br>${_fc:,.0f}'
+                f'Uncharged<br>(failed/cancelled)<br>${_fc:,.0f}'
             ],
             values=[_recovered, _uncharged_success, _fc],
             hole=0.65, marker_colors=[COLORS['green'], COLORS['red'], COLORS['gray']],
-            textinfo='percent', hovertemplate='%{label}<br>%{percent}<extra></extra>',
+            textinfo='label+percent',
+            textposition='outside',
+            hovertemplate='%{label}<br>%{percent}<extra></extra>',
         ))
-        fig.update_layout(**PLOTLY_THEME, height=320, showlegend=True,
-                          legend=dict(orientation='h', yanchor='bottom', y=-0.25, xanchor='center', x=0.5, font=dict(size=10)),
-                          margin=dict(l=10, r=10, t=10, b=80),
+        fig.update_layout(**PLOTLY_THEME, height=360, showlegend=False,
+                          margin=dict(l=80, r=80, t=40, b=40),
                           annotations=[dict(text='serving<br>cost', x=0.5, y=0.5, font_size=11, showarrow=False, font_color='#888')])
         st.plotly_chart(fig, use_container_width=True)
 
