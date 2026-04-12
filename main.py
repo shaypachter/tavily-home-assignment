@@ -390,10 +390,11 @@ with tab2:
     uncharged_cost_abs = data['uncharged_cost']
 
     with c1:
+        charged_success = data['success_count'] - uncharged_count
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
-            <div style="font-size:1rem;font-weight:500;color:#0f172a;font-family:DM Mono,monospace;margin-top:2px;">of successful requests</div>
-            <div style="font-size:0.85rem;color:#64748b;margin-top:2px;">({uncharged_count:,} requests)</div>
+            <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
             <div class="kpi-label" style="margin-top:6px;">Successful but uncharged</div>
             <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
@@ -419,9 +420,8 @@ with tab2:
             )
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_pct:.0%}</div>
-            <div style="font-size:0.8rem;color:#64748b;margin-top:2px;">~${uncharged_cost_abs:,.0f} unrecovered (USD)</div>
-            <div class="kpi-label" style="margin-top:8px;margin-bottom:6px;">Cost delivered free — by status</div>
-            {bar_rows}
+            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
         </div>''', unsafe_allow_html=True)
 
     with c3:
