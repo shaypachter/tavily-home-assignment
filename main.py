@@ -148,6 +148,25 @@ def load_data():
     total_revenue_usd = rr_clean['CREDITS_USED'].sum() * CREDIT_TO_USD
     recovery_rate_usd = total_revenue_usd / total_cost_rr
 
+    status_stats = []
+    for _s in ['success', 'failed', 'cancelled', 'not_entitled']:
+        _sub = rr_clean[rr_clean['STATUS'] == _s]
+        _total = len(_sub)
+        _charged = int((_sub['CREDITS_USED'] > 0).sum())
+        _cost = float(_sub['REQUEST_COST'].sum())
+        _recovered = float(_sub['CREDITS_USED'].sum()) * CREDIT_TO_USD
+        status_stats.append({
+            'status': _s,
+            'total_req': _total,
+            'charged_req': _charged,
+            'uncharged_req': _total - _charged,
+            'pct_charged': _charged / _total if _total > 0 else 0,
+            'total_cost': _cost,
+            'recovered': _recovered,
+            'unrecovered': _cost - _recovered,
+        })
+    status_stats_df = pd.DataFrame(status_stats)
+
     user_weeks_ser = rr_u.groupby('USER_ID')['active_weeks'].first()
     total_users = rr_u['USER_ID'].nunique()
     one_done = (user_weeks_ser == 1).sum()
@@ -168,6 +187,7 @@ def load_data():
         rr_clean=rr_clean,
         recovery_rate_usd=recovery_rate_usd,
         total_revenue_usd=total_revenue_usd,
+        status_stats_df=status_stats_df,
     )
 
 data = load_data()
@@ -357,6 +377,67 @@ with tab2:
 
     insight_html = '<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Their % of total requests and share of total cost is not meaningful and impactful as I thought.</div>'
     st.markdown(insight_html, unsafe_allow_html=True)
+
+    st.markdown("")
+
+    # Status chart
+    st.markdown('<div class="section-header">Requests & cost by status — charged vs uncharged</div>', unsafe_allow_html=True)
+    sdf = data['status_stats_df']
+
+    statuses = sdf['status'].tolist()
+    charged_reqs = sdf['charged_req'].tolist()
+    uncharged_reqs = sdf['uncharged_req'].tolist()
+    recovered_costs = sdf['recovered'].tolist()
+    unrecovered_costs = sdf['unrecovered'].tolist()
+    pct_charged = [f"{v:.1%}" for v in sdf['pct_charged'].tolist()]
+    pct_recovered = [f"{v:.1%}" for v in (sdf['recovered'] / sdf['total_cost'].replace(0, float('nan'))).tolist()]
+
+    from plotly.subplots import make_subplots as _make_subplots
+    fig_status = _make_subplots(
+        rows=1, cols=2,
+        subplot_titles=('Requests (#)', 'Cost (USD)'),
+        horizontal_spacing=0.12
+    )
+
+    colors_charged = '#1D9E75'
+    colors_uncharged = '#E24B4A'
+
+    fig_status.add_trace(go.Bar(
+        name='Charged', x=statuses, y=charged_reqs,
+        marker_color=colors_charged, legendgroup='charged',
+        hovertemplate='%{x}<br>Charged: %{y:,}<extra></extra>',
+    ), row=1, col=1)
+    fig_status.add_trace(go.Bar(
+        name='Uncharged', x=statuses, y=uncharged_reqs,
+        marker_color=colors_uncharged, legendgroup='uncharged',
+        hovertemplate='%{x}<br>Uncharged: %{y:,}<extra></extra>',
+    ), row=1, col=1)
+
+    fig_status.add_trace(go.Bar(
+        name='Recovered ($)', x=statuses, y=recovered_costs,
+        marker_color=colors_charged, legendgroup='charged', showlegend=False,
+        hovertemplate='%{x}<br>Recovered: $%{y:,.0f}<extra></extra>',
+    ), row=1, col=2)
+    fig_status.add_trace(go.Bar(
+        name='Unrecovered ($)', x=statuses, y=unrecovered_costs,
+        marker_color=colors_uncharged, legendgroup='uncharged', showlegend=False,
+        hovertemplate='%{x}<br>Unrecovered: $%{y:,.0f}<extra></extra>',
+    ), row=1, col=2)
+
+    fig_status.update_layout(
+        height=360, barmode='stack',
+        paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
+        font_family='DM Sans', font_color='#0f172a',
+        legend=dict(orientation='h', yanchor='bottom', y=1.05, xanchor='left', x=0),
+        margin=dict(l=10, r=10, t=50, b=10),
+        bargap=0.25,
+    )
+    fig_status.update_xaxes(showgrid=False, tickfont=dict(color='#0f172a'))
+    fig_status.update_yaxes(gridcolor='#f1f5f9', tickfont=dict(color='#0f172a'))
+    fig_status.update_yaxes(title_text='Number of requests', row=1, col=1)
+    fig_status.update_yaxes(title_text='Cost in USD', row=1, col=2)
+    st.plotly_chart(fig_status, use_container_width=True)
+    st.caption("* Cost recovery assumes $0.008/credit (PayGo rate)")
 
     st.markdown("")
 
