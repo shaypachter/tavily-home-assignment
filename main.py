@@ -144,6 +144,9 @@ def load_data():
     uncharged_cost = success[success['CREDITS_USED'] == 0]['REQUEST_COST'].sum()
     charged_cost = success[success['CREDITS_USED'] > 0]['REQUEST_COST'].sum()
     fc_cost = rr_clean[rr_clean['STATUS'].isin(['failed', 'cancelled'])]['REQUEST_COST'].sum()
+    CREDIT_TO_USD = 0.008
+    total_revenue_usd = rr_clean['CREDITS_USED'].sum() * CREDIT_TO_USD
+    recovery_rate_usd = total_revenue_usd / total_cost_rr
 
     user_weeks_ser = rr_u.groupby('USER_ID')['active_weeks'].first()
     total_users = rr_u['USER_ID'].nunique()
@@ -163,6 +166,8 @@ def load_data():
         uncharged_count=(success['CREDITS_USED'] == 0).sum(),
         w0_requests_ret=w0_requests_ret,
         rr_clean=rr_clean,
+        recovery_rate_usd=recovery_rate_usd,
+        total_revenue_usd=total_revenue_usd,
     )
 
 data = load_data()
@@ -330,11 +335,10 @@ with tab2:
     st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
     st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a structural profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
 
-    recovery_rate = data['charged_cost'] / data['total_cost_rr']
+    recovery_rate = data['recovery_rate_usd']
     uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
     uncharged_req_pct = data['uncharged_count'] / data['success_count']
 
-    st.markdown('<div class="section-header">Step 1 — checking the hypothesis: failed & cancelled requests</div>', unsafe_allow_html=True)
     rr_clean = data['rr_clean']
     n_failed = int((rr_clean['STATUS'] == 'failed').sum())
     n_cancelled = int((rr_clean['STATUS'] == 'cancelled').sum())
@@ -345,24 +349,24 @@ with tab2:
     for col, val, label, note in [
         (k1, f"{n_failed:,}", "Failed requests", f"{n_failed/n_total:.1%} of all requests"),
         (k2, f"{n_cancelled:,}", "Cancelled requests", f"{n_cancelled/n_total:.1%} of all requests"),
-        (k3, f"{fc_pct_cost:.2%}", "Their share of total cost", "almost nothing"),
-        (k4, "3,081", "Credits recovered on cancelled", "billing partially works here"),
+        (k3, f"{fc_pct_cost:.2%}", "Failed & cancelled share of total cost", "negligible"),
+        (k4, "3,081", "Credits recovered on cancelled requests", "charges do happen here"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
 
-    insight_html = '<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Failed and cancelled requests are a non-issue financially - despite averaging 78-134s of runtime and consuming real LLM and search calls.</div>'
+    insight_html = '<div class="insight-box success" style="margin-top:0.75rem;"><b>Hypothesis disproved.</b> Their % of total requests and share of total cost is not meaningful and impactful as I thought.</div>'
     st.markdown(insight_html, unsafe_allow_html=True)
 
-    st.markdown('<div class="section-header">Step 2 — so where is the money going?</div>', unsafe_allow_html=True)
+    st.markdown("")
 
     c1, c2, c3 = st.columns(3)
     uncharged_count = data['uncharged_count']
     uncharged_cost_abs = data['uncharged_cost']
     for col, val, label, note in [
-        (c1, f"{recovery_rate:.0%}", "Cost recovery rate", "credits charged / total system cost"),
-        (c2, f"{uncharged_req_pct:.0%}  ({uncharged_count:,} requests)", "Successful but uncharged", "successful requests with 0 credits"),
-        (c3, f"{uncharged_pct:.0%}", "Cost delivered free", f"~{uncharged_cost_abs:,.0f} cost units"),
+        (c1, f"{uncharged_req_pct:.0%} ({uncharged_count:,} requests)", "Successful but uncharged", "successful requests with 0 credits charged"),
+        (c2, f"{uncharged_pct:.0%}", "Cost delivered free (USD)", f"~${uncharged_cost_abs:,.0f} in serving cost (REQUEST_COST)"),
+        (c3, f"{data['recovery_rate_usd']:.0%}", "Revenue / serving cost", f"* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users. Est. revenue: ${data['total_revenue_usd']:,.0f}"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
