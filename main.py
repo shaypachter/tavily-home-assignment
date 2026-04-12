@@ -41,9 +41,8 @@ st.markdown("""
 PLOTLY_THEME = dict(
     template="plotly_white", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
     font_family="DM Sans", font_color="#0f172a",
-    xaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
-    yaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
 )
+AXIS_STYLE = dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9')
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 
 COLORS = {"blue": "#378ADD", "green": "#1D9E75", "red": "#E24B4A", "gray": "#B4B2A9", "purple": "#7F77DD"}
