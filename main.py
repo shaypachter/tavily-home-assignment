@@ -415,8 +415,6 @@ with tab2:
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
             <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
-            <div class="kpi-label" style="margin-top:6px;">Successful but uncharged</div>
-            <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
 
     st.markdown("")
@@ -437,9 +435,9 @@ with tab2:
             hole=0.65, marker_colors=[COLORS['green'], COLORS['red'], COLORS['gray']],
             textinfo='percent', hovertemplate='%{label}<br>%{percent}<extra></extra>',
         ))
-        fig.update_layout(**PLOTLY_THEME, height=300, showlegend=True,
-                          legend=dict(orientation='v', x=1.02, y=0.5, font=dict(size=11)),
-                          margin=dict(l=10, r=10, t=10, b=10),
+        fig.update_layout(**PLOTLY_THEME, height=320, showlegend=True,
+                          legend=dict(orientation='h', yanchor='bottom', y=-0.25, xanchor='center', x=0.5, font=dict(size=10)),
+                          margin=dict(l=10, r=10, t=10, b=80),
                           annotations=[dict(text='serving<br>cost', x=0.5, y=0.5, font_size=11, showarrow=False, font_color='#888')])
         st.plotly_chart(fig, use_container_width=True)
 
