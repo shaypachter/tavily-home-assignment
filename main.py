@@ -254,16 +254,40 @@ with tab1:
     with col_right:
         st.markdown('<div class="section-header">Retention rate by plan</div>', unsafe_allow_html=True)
         plan_ret = data['plan_ret']
-        bar_colors = [COLORS['green'] if p == 'enterprise' else COLORS['red'] if p == 'researcher' else COLORS['blue'] for p in plan_ret['plan']]
-        fig = go.Figure(go.Bar(
-            x=plan_ret['plan'], y=plan_ret['retention_rate'], marker_color=bar_colors,
-            text=[f"{v:.0%}" for v in plan_ret['retention_rate']], textposition='outside',
-            hovertemplate='%{x}: %{y:.0%}<extra></extra>',
-        ))
-        fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
-                          yaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9', title='Retention rate'),
-                          xaxis=dict(showgrid=False, title='Plan'))
-        st.plotly_chart(fig, use_container_width=True)
+
+        def plan_color(p, r):
+            if p == 'enterprise': return '#1D9E75'
+            if p == 'researcher': return '#E24B4A'
+            return '#378ADD'
+
+        rows_html = ""
+        for _, row in plan_ret.iterrows():
+            color = plan_color(row['plan'], row['retention_rate'])
+            pct = row['retention_rate'] * 100
+            count = f"{int(row['user_count']):,}"
+            rows_html += f"""
+            <tr>
+                <td style="padding:9px 12px;font-size:13px;font-weight:500;color:#0f172a;">{row['plan']}</td>
+                <td style="padding:9px 12px;font-size:13px;font-variant-numeric:tabular-nums;color:#0f172a;">{pct:.0f}%</td>
+                <td style="padding:9px 12px;font-size:12px;color:#64748b;">{count}</td>
+                <td style="padding:9px 12px;width:40%;">
+                    <div style="height:10px;border-radius:3px;background:{color};width:{pct:.0f}%;"></div>
+                </td>
+            </tr>"""
+
+        table_html = f"""
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom:0.5px solid #e2e8f0;">
+                    <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Plan</th>
+                    <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Retention</th>
+                    <th style="padding:6px 12px;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;text-align:left;">Users</th>
+                    <th style="padding:6px 12px;width:40%;"></th>
+                </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+        </table>"""
+        st.markdown(table_html, unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
     seg_labels = ['MCP users', 'Non-MCP users', 'PayGo enabled', 'No PayGo', 'Non-streaming', 'Streaming']
