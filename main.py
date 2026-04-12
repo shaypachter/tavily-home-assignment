@@ -229,7 +229,7 @@ with tab1:
     for col, val, label, note in [
         (c1, f"{data['one_done'] / data['total_users']:.0%}", "One-time users", "never return after week 0"),
         (c2, "22%", "Week-1 retention", "avg across cohorts"),
-        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "generate 79% of credits charged"),
+        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "active 4+ weeks · generate 79% of credits charged"),
     ]:
         with col:
             st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
