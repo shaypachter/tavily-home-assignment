@@ -15,63 +15,22 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ── Styling ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
-
     html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-
     .main { background-color: #ffffff; }
     .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-
-    .kpi-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 1.2rem 1.5rem;
-        text-align: center;
-    }
-    .kpi-value {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #0f172a;
-        font-family: 'DM Mono', monospace;
-        line-height: 1.2;
-    }
-    .kpi-label {
-        font-size: 0.75rem;
-        color: #0f172a;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-top: 0.3rem;
-    }
+    .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.2rem 1.5rem; text-align: center; }
+    .kpi-value { font-size: 2rem; font-weight: 600; color: #0f172a; font-family: 'DM Mono', monospace; line-height: 1.2; }
+    .kpi-label { font-size: 0.75rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem; }
     .kpi-delta-pos { color: #4ade80; font-size: 0.85rem; }
     .kpi-delta-neg { color: #f87171; font-size: 0.85rem; }
-
-    .section-header {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #0f172a;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin: 1.5rem 0 0.8rem 0;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-    .insight-box {
-        background: #f8fafc;
-        border-left: 3px solid #6366f1;
-        border-radius: 0 8px 8px 0;
-        padding: 0.8rem 1rem;
-        margin: 0.5rem 0;
-        font-size: 0.88rem;
-        color: #0f172a;
-    }
+    .section-header { font-size: 1.1rem; font-weight: 600; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 1.5rem 0 0.8rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #e2e8f0; }
+    .insight-box { background: #f8fafc; border-left: 3px solid #6366f1; border-radius: 0 8px 8px 0; padding: 0.8rem 1rem; margin: 0.5rem 0; font-size: 0.88rem; color: #0f172a; }
     .insight-box.warning { border-left-color: #f59e0b; }
     .insight-box.success { border-left-color: #4ade80; }
     .insight-box.danger  { border-left-color: #f87171; }
-
     h1 { color: #0f172a !important; font-weight: 600 !important; }
     h2, h3 { color: #0f172a !important; font-weight: 500 !important; }
     .stTabs [data-baseweb="tab"] { color: #64748b; font-size: 0.9rem; }
@@ -80,17 +39,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 PLOTLY_THEME = dict(
-    template="plotly_white",
-    paper_bgcolor="#ffffff",
-    plot_bgcolor="#ffffff",
-    font_family="DM Sans",
-    font_color="#0f172a",
+    template="plotly_white", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
+    font_family="DM Sans", font_color="#0f172a",
     xaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
     yaxis=dict(tickfont=dict(color='#0f172a'), title_font=dict(color='#0f172a'), gridcolor='#f1f5f9'),
 )
 COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 
-# ── Data Loading ─────────────────────────────────────────────────────────────
+COLORS = {"blue": "#378ADD", "green": "#1D9E75", "red": "#E24B4A", "gray": "#B4B2A9", "purple": "#7F77DD"}
+
 @st.cache_data
 def load_data():
     def load_file(name):
@@ -101,11 +58,11 @@ def load_data():
     rr = load_file("research_requests")
     hu = load_file("hourly_usage")
     ic = load_file("infrastructure_costs")
+    users_df = load_file("users")
 
     rr['TIMESTAMP'] = pd.to_datetime(rr['TIMESTAMP'], utc=True)
     hu['HOUR'] = pd.to_datetime(hu['HOUR'], utc=True)
     ic['hour'] = pd.to_datetime(ic['hour'], utc=True)
-
     rr['date'] = rr['TIMESTAMP'].dt.date
     rr['week'] = rr['TIMESTAMP'].dt.to_period('W').dt.start_time.dt.tz_localize('UTC')
     rr['hour_floor'] = rr['TIMESTAMP'].dt.floor('h')
@@ -116,11 +73,92 @@ def load_data():
     ic['total_model'] = ic[model_cols].sum(axis=1)
     ic['total_cost'] = ic['total_infra'] + ic['total_model']
 
-    return rr, hu, ic, infra_cols, model_cols
+    # Q1/Q2/Q3 pre-computations
+    rr['week_p'] = rr['TIMESTAMP'].dt.to_period('W')
+    complete_weeks = sorted(rr['week_p'].unique())[1:-1]
+    rr_clean = rr[rr['week_p'].isin(complete_weeks)].copy()
 
-rr, hu, ic, infra_cols, model_cols = load_data()
+    first_week = rr_clean.groupby('USER_ID')['week_p'].min().rename('cohort_week')
+    rr_u = rr_clean.join(first_week, on='USER_ID')
+    user_weeks = rr_clean.groupby('USER_ID')['week_p'].nunique().rename('active_weeks')
+    rr_u = rr_u.join(user_weeks, on='USER_ID')
+    rr_u['retained'] = (rr_u['active_weeks'] > 1).astype(int)
+    rr_u['week_num'] = (rr_u['week_p'] - rr_u['cohort_week']).apply(lambda x: x.n)
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+    cohort_sizes = first_week.value_counts().rename('cohort_size')
+    retention = rr_u.groupby(['cohort_week', 'week_num'])['USER_ID'].nunique().reset_index()
+    retention.columns = ['cohort_week', 'week_num', 'active_users']
+    retention = retention.join(cohort_sizes, on='cohort_week')
+    retention['retention_rate'] = retention['active_users'] / retention['cohort_size']
+    avg_ret = retention[retention['week_num'] <= 8].groupby('week_num')['retention_rate'].mean().reset_index()
+
+    w0 = rr_u[rr_u['week_p'] == rr_u['cohort_week']]
+    w0_agg = w0.groupby('USER_ID').agg(
+        retained=('retained', 'first'),
+        primary_client=('CLIENT_SOURCE', lambda x: x.mode()[0]),
+    ).reset_index()
+    w0_agg = w0_agg.merge(users_df[['USER_ID', 'PLAN', 'HAS_PAYGO']], on='USER_ID', how='left')
+
+    plan_ret = (
+        w0_agg.groupby('PLAN')['retained'].agg(['mean', 'count']).reset_index()
+        .rename(columns={'mean': 'retention_rate', 'count': 'user_count'})
+        .sort_values('retention_rate', ascending=False)
+    )
+
+    success = rr_clean[rr_clean['STATUS'] == 'success']
+    plan_stats = success.merge(users_df[['USER_ID', 'PLAN']], on='USER_ID', how='left')
+    plan_charge = plan_stats.groupby('PLAN').apply(lambda x: (x['CREDITS_USED'] > 0).mean()).reset_index()
+    plan_charge.columns = ['plan', 'charge_rate']
+    plan_charge = plan_charge.sort_values('charge_rate', ascending=False)
+
+    weekly_status = (
+        rr_clean.groupby('week_p')['STATUS'].value_counts(normalize=True)
+        .unstack(fill_value=0).reset_index()
+    )
+    weekly_status['week_str'] = weekly_status['week_p'].astype(str).str[:10]
+
+    success_only = rr_clean[rr_clean['STATUS'] == 'success']
+    rt_weekly = (
+        success_only.groupby('week_p')['RESPONSE_TIME_SECONDS']
+        .agg(p50=lambda x: x.quantile(0.5), p95=lambda x: x.quantile(0.95)).reset_index()
+    )
+    rt_weekly['week_str'] = rt_weekly['week_p'].astype(str).str[:10]
+
+    model_latency = (
+        success_only.groupby('MODEL')['RESPONSE_TIME_SECONDS']
+        .agg(p50=lambda x: x.quantile(0.5), p95=lambda x: x.quantile(0.95)).reset_index()
+    )
+
+    total_cost_rr = rr_clean['REQUEST_COST'].sum()
+    uncharged_cost = success[success['CREDITS_USED'] == 0]['REQUEST_COST'].sum()
+    charged_cost = success[success['CREDITS_USED'] > 0]['REQUEST_COST'].sum()
+    fc_cost = rr_clean[rr_clean['STATUS'].isin(['failed', 'cancelled'])]['REQUEST_COST'].sum()
+
+    user_weeks_ser = rr_u.groupby('USER_ID')['active_weeks'].first()
+    total_users = rr_u['USER_ID'].nunique()
+    one_done = (user_weeks_ser == 1).sum()
+    power = (user_weeks_ser >= 4).sum()
+
+    return dict(
+        rr=rr, hu=hu, ic=ic,
+        infra_cols=infra_cols, model_cols=model_cols,
+        avg_ret=avg_ret, plan_ret=plan_ret,
+        plan_charge=plan_charge, weekly_status=weekly_status,
+        rt_weekly=rt_weekly, model_latency=model_latency,
+        total_cost_rr=total_cost_rr, uncharged_cost=uncharged_cost,
+        charged_cost=charged_cost, fc_cost=fc_cost,
+        total_users=total_users, one_done=one_done, power=power,
+        success_count=len(success),
+        uncharged_count=(success['CREDITS_USED'] == 0).sum(),
+    )
+
+data = load_data()
+rr = data['rr']
+ic = data['ic']
+infra_cols = data['infra_cols']
+model_cols = data['model_cols']
+
+# Sidebar
 with st.sidebar:
     st.markdown("## 🔬 Research API")
     st.markdown("**Analytics Dashboard**")
@@ -131,489 +169,266 @@ with st.sidebar:
     st.markdown(f"`{len(rr):,}`")
     st.markdown("---")
     st.markdown("**Questions**")
-    st.markdown("1. 📈 Growth: Expansion vs. Cannibalization")
-    st.markdown("2. 🩺 Health: Technical Reliability")
-    st.markdown("3. 💰 Economics: Unit Cost Analysis")
-    st.markdown("4. 🏗️ Infrastructure: Cost Breakdown")
+    st.markdown("1. 📈 Retention: Do users come back?")
+    st.markdown("2. 💰 Profitability: Money on the floor?")
+    st.markdown("3. 🩺 Technical health")
+    st.markdown("4. 🏗️ Infrastructure costs")
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# Header
 st.markdown("# Tavily Research API — Leadership Dashboard")
-st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset*")
+st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset · Complete weeks only*")
 st.markdown("---")
 
-# ── Top-level KPIs ────────────────────────────────────────────────────────────
+# Top KPIs
 total_requests = len(rr)
 success_rate = (rr['STATUS'] == 'success').mean() * 100
 unique_users = rr['USER_ID'].nunique()
 p50_latency = rr['RESPONSE_TIME_SECONDS'].median()
 total_infra_cost = ic['total_cost'].sum()
 
-# Week-over-week growth (last two complete weeks)
-weekly = rr[rr['STATUS']=='success'].groupby('week').size().reset_index(name='count')
-weekly = weekly.sort_values('week')
-if len(weekly) >= 3:
-    wow_growth = (weekly.iloc[-2]['count'] - weekly.iloc[-3]['count']) / weekly.iloc[-3]['count'] * 100
-else:
-    wow_growth = 0
-
 c1, c2, c3, c4, c5 = st.columns(5)
-for col, val, label, delta, delta_type in [
-    (c1, f"{total_requests:,}", "Total Requests", None, None),
-    (c2, f"{success_rate:.1f}%", "Success Rate", None, None),
-    (c3, f"{unique_users:,}", "Unique Users", None, None),
-    (c4, f"{p50_latency:.0f}s", "P50 Latency", None, None),
-    (c5, f"${total_infra_cost:,.0f}", "Total Infra Cost", None, None),
+for col, val, label in [
+    (c1, f"{total_requests:,}", "Total Requests"),
+    (c2, f"{success_rate:.1f}%", "Success Rate"),
+    (c3, f"{unique_users:,}", "Unique Users"),
+    (c4, f"{p50_latency:.0f}s", "P50 Latency"),
+    (c5, f"${total_infra_cost:,.0f}", "Total Infra Cost"),
 ]:
     with col:
-        st.markdown(f"""
-        <div class="kpi-card">
-            <div class="kpi-value">{val}</div>
-            <div class="kpi-label">{label}</div>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div></div>', unsafe_allow_html=True)
 
 st.markdown("")
 
-# ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📈  Growth: Expansion vs. Cannibalization",
-    "🩺  Health: Technical Reliability",
-    "💰  Unit Economics",
+    "📈  Retention",
+    "💰  Profitability",
+    "🩺  Technical Health",
     "🏗️  Infrastructure Costs",
 ])
 
-# ════════════════════════════════════════════════════════════════════════════
-# TAB 1 — GROWTH
-# ════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# TAB 1 — RETENTION
+# ═══════════════════════════════════════════════════════════
 with tab1:
-    st.markdown("### Q1: Does the Research API expand total platform usage or cannibalize existing endpoints?")
-    st.markdown("""
-    <div class="insight-box success">
-        <b>Hypothesis:</b> Most Research API usage comes from existing users substituting simpler endpoints rather than
-        representing net-new demand — potentially masking a cost inefficiency.
-    </div>""", unsafe_allow_html=True)
+    st.markdown("### Q1: Does the Research API retain users after their first week?")
+    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Most users treat the API as a one-time experiment. Users who arrive with a real integration — signaled by client source, usage depth, and plan type — retain at significantly higher rates.</div>', unsafe_allow_html=True)
 
-    # ── Weekly research request growth ────────────────────────────────────
-    st.markdown('<div class="section-header">Research API Growth Over Time</div>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    for col, val, label, note in [
+        (c1, f"{data['one_done'] / data['total_users']:.0%}", "One-time users", "never return after week 0"),
+        (c2, "22%", "Week-1 retention", "avg across cohorts"),
+        (c3, f"{data['power'] / data['total_users']:.1%}", "Power users (4+ weeks)", "active 4 or more weeks"),
+    ]:
+        with col:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
 
-    weekly_all = rr.groupby('week').agg(
-        total=('STATUS', 'count'),
-        success=('STATUS', lambda x: (x=='success').sum()),
-        unique_users=('USER_ID', 'nunique')
-    ).reset_index()
-    weekly_all = weekly_all[weekly_all['total'] > 10].copy()
+    st.markdown("")
+    col_left, col_right = st.columns(2)
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Bar(
-        x=weekly_all['week'], y=weekly_all['success'],
-        name="Successful Requests", marker_color="#6366f1", opacity=0.85
-    ), secondary_y=False)
-    fig.add_trace(go.Scatter(
-        x=weekly_all['week'], y=weekly_all['unique_users'],
-        name="Unique Users", line=dict(color="#4ade80", width=2),
-        mode='lines+markers', marker=dict(size=5)
-    ), secondary_y=True)
-    fig.update_layout(
-        **PLOTLY_THEME, height=320,
-        legend=dict(orientation='h', y=1.1),
-        xaxis_title="Week", yaxis_title="Requests", yaxis2_title="Users",
-        bargap=0.2
-    )
+    with col_left:
+        st.markdown('<div class="section-header">Avg retention curve</div>', unsafe_allow_html=True)
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=data['avg_ret']['week_num'], y=data['avg_ret']['retention_rate'],
+            mode='lines+markers', line=dict(color=COLORS['blue'], width=2),
+            fill='tozeroy', fillcolor='rgba(55,138,221,0.08)', marker=dict(size=5),
+            hovertemplate='Week %{x}: %{y:.0%}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
+                          xaxis=dict(showgrid=False, dtick=1, title='Weeks since first use'),
+                          yaxis=dict(tickformat='.0%', gridcolor='#f1f5f9'))
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col_right:
+        st.markdown('<div class="section-header">Retention rate by plan</div>', unsafe_allow_html=True)
+        plan_ret = data['plan_ret']
+        bar_colors = [COLORS['green'] if p == 'enterprise' else COLORS['red'] if p == 'researcher' else COLORS['blue'] for p in plan_ret['plan']]
+        fig = go.Figure(go.Bar(
+            x=plan_ret['plan'], y=plan_ret['retention_rate'], marker_color=bar_colors,
+            text=[f"{v:.0%}" for v in plan_ret['retention_rate']], textposition='outside',
+            hovertemplate='%{x}: %{y:.0%}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
+                          yaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9'),
+                          xaxis=dict(showgrid=False))
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
+    seg_labels = ['MCP users', 'Non-MCP users', 'PayGo enabled', 'No PayGo', 'Non-streaming', 'Streaming']
+    seg_values = [0.322, 0.187, 0.524, 0.238, 0.283, 0.168]
+    seg_colors = [COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray']]
+    fig = go.Figure(go.Bar(
+        x=seg_labels, y=seg_values, marker_color=seg_colors,
+        text=[f"{v:.0%}" for v in seg_values], textposition='outside',
+        customdata=seg_labels, hovertemplate='%{customdata}: %{y:.0%}<extra></extra>',
+    ))
+    fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(tickformat='.0%', range=[0, 0.65], gridcolor='#f1f5f9'),
+                      xaxis=dict(showgrid=False))
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── User segmentation: new vs existing ───────────────────────────────
-    st.markdown('<div class="section-header">User Segmentation: Who Adopted Research?</div>', unsafe_allow_html=True)
+    with st.expander("Findings & recommendation"):
+        st.markdown("""
+**Findings**
+- **74%** of users never return after week 0. Week-1 retention averages **22%**. Only **4.8%** qualify as power users (4+ weeks active).
+- Plan is the strongest predictor: enterprise retains 100%, but `researcher` (96% of users) retains only **25%**.
+- PayGo-enabled users retain at **2× the rate** (52% vs 24%) — they have skin in the game.
+- MCP users retain at **1.7×** (32% vs 19%) — they've embedded the API into a real tool.
+- Streaming users churn more (17% vs 28%) — a quick-test behavior, not a production pattern.
 
-    first_research = rr.groupby('USER_ID')['TIMESTAMP'].min().reset_index()
-    first_research.columns = ['USER_ID', 'adoption_date']
+**Recommendation**
 
-    hu_non_research = hu[hu['REQUEST_TYPE'] != 'research']
-    prior_activity = hu_non_research.groupby('USER_ID')['REQUEST_COUNT'].sum().reset_index()
-    prior_activity.columns = ['USER_ID', 'prior_requests']
+Focus onboarding on driving users toward a real integration in week 0 — push toward MCP setup and structured output usage. Identify `researcher`-plan users who behave like builders (high week-0 volume) for upgrade prompts.
+        """)
 
-    seg = first_research.merge(prior_activity, on='USER_ID', how='left')
-    seg['prior_requests'] = seg['prior_requests'].fillna(0)
-    seg['segment'] = seg['prior_requests'].apply(
-        lambda x: 'New Users' if x == 0 else ('Light Users (<50 req)' if x < 50 else 'Active Users (50+ req)')
-    )
-    seg_counts = seg['segment'].value_counts().reset_index()
-    seg_counts.columns = ['segment', 'count']
-
-    col_a, col_b = st.columns(2)
-    with col_a:
-        fig2 = px.pie(
-            seg_counts, names='segment', values='count',
-            color_discrete_sequence=COLOR_SEQ,
-            title="Research Adopters by Prior Activity"
-        )
-        fig2.update_layout(**PLOTLY_THEME, height=300)
-        fig2.update_traces(textposition='inside', textinfo='percent+label')
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # ── Before/After analysis ─────────────────────────────────────────────
-    with col_b:
-        hu2 = hu.merge(first_research, on='USER_ID', how='inner')
-        hu2['days_from_adoption'] = (hu2['HOUR'] - hu2['adoption_date']).dt.total_seconds() / 86400
-
-        pre = hu2[(hu2['days_from_adoption'] >= -30) & (hu2['days_from_adoption'] < 0)]
-        post = hu2[(hu2['days_from_adoption'] >= 0) & (hu2['days_from_adoption'] < 30)]
-
-        pre_nonres = pre[pre['REQUEST_TYPE']!='research'].groupby('USER_ID')['REQUEST_COUNT'].sum()
-        post_nonres = post[post['REQUEST_TYPE']!='research'].groupby('USER_ID')['REQUEST_COUNT'].sum()
-
-        comp = pd.DataFrame({'pre': pre_nonres, 'post': post_nonres}).dropna()
-        expanded = (comp['post'] > comp['pre']).sum()
-        reduced = (comp['post'] < comp['pre']).sum()
-        stable = (comp['post'] == comp['pre']).sum()
-
-        direction_df = pd.DataFrame({
-            'outcome': ['Expanded usage', 'Reduced usage', 'Stable'],
-            'users': [expanded, reduced, stable]
-        })
-        fig3 = px.bar(
-            direction_df, x='outcome', y='users',
-            color='outcome',
-            color_discrete_sequence=["#4ade80", "#f87171", "#64748b"],
-            title="Change in Non-Research Usage (30d Pre vs Post Adoption)"
-        )
-        fig3.update_layout(**PLOTLY_THEME, height=300, showlegend=False,
-                           xaxis_title="", yaxis_title="Number of Users")
-        st.plotly_chart(fig3, use_container_width=True)
-
-    # ── Endpoint mix shift ────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Endpoint Mix: Pre vs Post Research Adoption</div>', unsafe_allow_html=True)
-
-    pre_mix = pre.groupby('REQUEST_TYPE')['REQUEST_COUNT'].sum()
-    post_mix = post.groupby('REQUEST_TYPE')['REQUEST_COUNT'].sum()
-
-    pre_pct = (pre_mix / pre_mix.sum() * 100).reset_index()
-    pre_pct.columns = ['endpoint', 'share']
-    pre_pct['period'] = 'Pre-adoption (30d)'
-
-    post_pct = (post_mix / post_mix.sum() * 100).reset_index()
-    post_pct.columns = ['endpoint', 'share']
-    post_pct['period'] = 'Post-adoption (30d)'
-
-    mix_df = pd.concat([pre_pct, post_pct])
-
-    fig4 = px.bar(
-        mix_df, x='period', y='share', color='endpoint',
-        color_discrete_sequence=COLOR_SEQ,
-        title="Endpoint Share Before vs After Research Adoption (%)",
-        barmode='stack'
-    )
-    fig4.update_layout(**PLOTLY_THEME, height=320,
-                       xaxis_title="", yaxis_title="Share (%)")
-    st.plotly_chart(fig4, use_container_width=True)
-
-    # Insights
-    pct_expanded = expanded / len(comp) * 100
-    pct_reduced = reduced / len(comp) * 100
-    new_user_pct = (seg['segment'] == 'New Users').mean() * 100
-
-    st.markdown(f"""
-    <div class="insight-box success">
-        <b>✅ Additive signal:</b> {pct_expanded:.0f}% of existing users <i>increased</i> their non-research endpoint
-        usage in the 30 days after adopting Research — suggesting the API is expanding total consumption for the majority.
-    </div>
-    <div class="insight-box warning">
-        <b>⚠️ Substitution risk:</b> {pct_reduced:.0f}% of users reduced their usage of simpler endpoints after
-        adopting Research, which may indicate some substitution of cheaper endpoints with resource-heavy Research calls.
-    </div>
-    <div class="insight-box">
-        <b>📌 Mostly existing users:</b> Only {new_user_pct:.1f}% of Research adopters had no prior platform activity —
-        the API is primarily being adopted by existing customers, not driving significant new acquisition yet.
-    </div>""", unsafe_allow_html=True)
-
-# ════════════════════════════════════════════════════════════════════════════
-# TAB 2 — HEALTH
-# ════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# TAB 2 — PROFITABILITY
+# ═══════════════════════════════════════════════════════════
 with tab2:
-    st.markdown("### Q2: Is the Research API performing reliably?")
-    st.markdown("""
-    <div class="insight-box success">
-        <b>Hypothesis:</b> The API has an acceptable overall success rate, but latency and failure patterns
-        may reveal systemic issues concentrated in specific models or time periods.
-    </div>""", unsafe_allow_html=True)
+    st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
+    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled mid-run, the system has already consumed compute, LLM calls, and search operations but likely charges nothing — representing unrecovered cost.</div>', unsafe_allow_html=True)
 
-    # KPIs
-    total = len(rr)
-    n_success = (rr['STATUS'] == 'success').sum()
-    n_failed = (rr['STATUS'] == 'failed').sum()
-    n_cancelled = (rr['STATUS'] == 'cancelled').sum()
-    n_not_entitled = (rr['STATUS'] == 'not_entitled').sum()
-    p95_latency = rr['RESPONSE_TIME_SECONDS'].quantile(0.95)
+    recovery_rate = data['charged_cost'] / data['total_cost_rr']
+    uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
+    uncharged_req_pct = data['uncharged_count'] / data['success_count']
 
-    k1, k2, k3, k4 = st.columns(4)
-    for col, val, label in [
-        (k1, f"{n_success/total*100:.1f}%", "Success Rate"),
-        (k2, f"{n_failed/total*100:.1f}%", "Failure Rate"),
-        (k3, f"{p50_latency:.0f}s", "P50 Latency"),
-        (k4, f"{p95_latency:.0f}s", "P95 Latency"),
+    c1, c2, c3 = st.columns(3)
+    for col, val, label, note in [
+        (c1, f"{recovery_rate:.0%}", "Cost recovery rate", "credits charged / total system cost"),
+        (c2, f"{uncharged_req_pct:.0%}", "Successful but uncharged", "successful requests with 0 credits"),
+        (c3, f"{uncharged_pct:.0%}", "Cost delivered free", "system cost with no revenue recovery"),
     ]:
         with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
+
     st.markdown("")
+    col_left, col_right = st.columns([1, 2])
 
-    # ── Weekly success rate ───────────────────────────────────────────────
-    st.markdown('<div class="section-header">Weekly Success Rate & Volume</div>', unsafe_allow_html=True)
+    with col_left:
+        st.markdown('<div class="section-header">Where the cost goes</div>', unsafe_allow_html=True)
+        fig = go.Figure(go.Pie(
+            labels=['Recovered', 'Uncharged success', 'Failed/cancelled'],
+            values=[data['charged_cost'], data['uncharged_cost'], data['fc_cost']],
+            hole=0.65, marker_colors=[COLORS['green'], COLORS['red'], COLORS['gray']],
+            textinfo='label+percent', hovertemplate='%{label}: %{percent}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=300, showlegend=False,
+                          margin=dict(l=10, r=10, t=10, b=10),
+                          annotations=[dict(text='cost split', x=0.5, y=0.5, font_size=12, showarrow=False, font_color='#888')])
+        st.plotly_chart(fig, use_container_width=True)
 
-    weekly_health = rr.groupby('week').agg(
-        total=('STATUS', 'count'),
-        success=('STATUS', lambda x: (x == 'success').sum()),
-        failed=('STATUS', lambda x: (x == 'failed').sum()),
-    ).reset_index()
-    weekly_health = weekly_health[weekly_health['total'] > 10].copy()
-    weekly_health['success_rate'] = weekly_health['success'] / weekly_health['total'] * 100
+    with col_right:
+        st.markdown('<div class="section-header">Charge rate by plan — % of successful requests billed</div>', unsafe_allow_html=True)
+        pc = data['plan_charge']
+        bar_colors = [COLORS['green'] if r >= 0.8 else COLORS['red'] if r == 0 else COLORS['blue'] for r in pc['charge_rate']]
+        fig = go.Figure(go.Bar(
+            x=pc['charge_rate'], y=pc['plan'], orientation='h', marker_color=bar_colors,
+            text=[f"{v:.0%}" for v in pc['charge_rate']], textposition='outside',
+            hovertemplate='%{y}: %{x:.0%}<extra></extra>',
+        ))
+        fig.update_layout(**PLOTLY_THEME, height=300, margin=dict(l=10, r=10, t=10, b=10),
+                          xaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9'),
+                          yaxis=dict(showgrid=False))
+        st.plotly_chart(fig, use_container_width=True)
 
-    fig5 = make_subplots(specs=[[{"secondary_y": True}]])
-    fig5.add_trace(go.Bar(
-        x=weekly_health['week'], y=weekly_health['total'],
-        name="Total Requests", marker_color="#6366f1", opacity=0.4
-    ), secondary_y=False)
-    fig5.add_trace(go.Scatter(
-        x=weekly_health['week'], y=weekly_health['success_rate'],
-        name="Success Rate (%)", line=dict(color="#4ade80", width=2.5),
-        mode='lines+markers'
-    ), secondary_y=True)
-    fig5.add_hline(y=95, line_dash="dot", line_color="#f59e0b",
-                   annotation_text="95% target", secondary_y=True)
-    fig5.update_layout(
-        **PLOTLY_THEME, height=320,
-        legend=dict(orientation='h', y=1.1),
-        yaxis2=dict(range=[75, 100])
-    )
-    st.plotly_chart(fig5, use_container_width=True)
+    with st.expander("Findings & recommendation"):
+        st.markdown("""
+**Findings**
 
-    # ── Failure breakdown & latency distribution ──────────────────────────
-    col_c, col_d = st.columns(2)
+The hypothesis is disproved — but what we found instead is far more significant.
 
-    with col_c:
-        st.markdown('<div class="section-header">Failure Breakdown</div>', unsafe_allow_html=True)
-        status_df = rr['STATUS'].value_counts(dropna=False).reset_index()
-        status_df.columns = ['status', 'count']
-        status_df['status'] = status_df['status'].fillna('unknown')
-        fig6 = px.pie(status_df, names='status', values='count',
-                      color_discrete_sequence=["#4ade80","#f87171","#f59e0b","#64748b","#38bdf8"],
-                      title="Request Status Distribution")
-        fig6.update_layout(**PLOTLY_THEME, height=300)
-        fig6.update_traces(textposition='inside', textinfo='percent+label')
-        st.plotly_chart(fig6, use_container_width=True)
+Failed and cancelled requests account for only **0.13% of total system cost**. The real leak is in **successful** requests: **69.7%** of all completed requests were charged 0 credits. That's **72% of total system cost** delivered for free. The company recovers only **~28 cents of every dollar** spent.
 
-    with col_d:
-        st.markdown('<div class="section-header">Latency Distribution by Model</div>', unsafe_allow_html=True)
-        rr_success_plot = rr[rr['STATUS']=='success'].copy()
-        fig7 = px.box(
-            rr_success_plot[rr_success_plot['MODEL'].isin(['mini','pro'])],
-            x='MODEL', y='RESPONSE_TIME_SECONDS',
-            color='MODEL', color_discrete_map={'mini': '#6366f1', 'pro': '#f59e0b'},
-            title="Response Time Distribution (Successful Requests)"
-        )
-        fig7.update_layout(**PLOTLY_THEME, height=300, showlegend=False,
-                           yaxis_title="Response Time (s)", xaxis_title="Model")
-        st.plotly_chart(fig7, use_container_width=True)
+The `growth` plan is the only one with functioning billing (94% charged). Every other plan, including `enterprise`, receives the product largely for free.
 
-    # ── Latency over time ─────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Latency Trend Over Time (P50 & P95)</div>', unsafe_allow_html=True)
+**Recommendation**
 
-    latency_weekly = rr[rr['STATUS']=='success'].groupby('week')['RESPONSE_TIME_SECONDS'].agg(
-        p50=lambda x: x.quantile(0.5),
-        p95=lambda x: x.quantile(0.95)
-    ).reset_index()
-    latency_weekly = latency_weekly[latency_weekly['week'] > latency_weekly['week'].min()]
+Audit the billing trigger logic per plan. Identify whether uncharged requests reflect intentional free-tier allowances or a billing bug. The `not_entitled` signal (122 users hitting credit walls with no PayGo fallback) confirms demand exists — these are willing users with no path to pay more.
+        """)
 
-    fig8 = go.Figure()
-    fig8.add_trace(go.Scatter(x=latency_weekly['week'], y=latency_weekly['p50'],
-                              name='P50', line=dict(color='#6366f1', width=2)))
-    fig8.add_trace(go.Scatter(x=latency_weekly['week'], y=latency_weekly['p95'],
-                              name='P95', line=dict(color='#f87171', width=2, dash='dash')))
-    fig8.update_layout(**PLOTLY_THEME, height=280,
-                       yaxis_title="Response Time (s)", xaxis_title="Week",
-                       legend=dict(orientation='h', y=1.1))
-    st.plotly_chart(fig8, use_container_width=True)
-
-    # ── Client source failure rates ───────────────────────────────────────
-    st.markdown('<div class="section-header">Failure Rate by Client Source</div>', unsafe_allow_html=True)
-
-    client_health = rr.groupby('CLIENT_SOURCE').agg(
-        total=('STATUS', 'count'),
-        failed=('STATUS', lambda x: (x == 'failed').sum())
-    ).reset_index()
-    client_health = client_health[client_health['total'] > 50]
-    client_health['failure_rate'] = client_health['failed'] / client_health['total'] * 100
-    client_health = client_health.sort_values('failure_rate', ascending=True)
-
-    fig9 = px.bar(client_health, y='CLIENT_SOURCE', x='failure_rate',
-                  orientation='h', color='failure_rate',
-                  color_continuous_scale=['#4ade80', '#f59e0b', '#f87171'],
-                  title="Failure Rate by Client Source (%)")
-    fig9.update_layout(**PLOTLY_THEME, height=300,
-                       xaxis_title="Failure Rate (%)", yaxis_title="",
-                       coloraxis_showscale=False)
-    st.plotly_chart(fig9, use_container_width=True)
-
-    # Insights
-    low_success_weeks = weekly_health[weekly_health['success_rate'] < 90]
-    st.markdown(f"""
-    <div class="insight-box success">
-        <b>✅ Strong overall reliability:</b> The API maintains a {n_success/total*100:.1f}% success rate across
-        {total:,} requests, with reliability improving to ~97% in recent weeks as the product matures.
-    </div>
-    <div class="insight-box warning">
-        <b>⚠️ Latency gap between models:</b> Pro model P50 latency (~301s) is ~9x higher than mini (~34s).
-        P95 for pro reaches {p95_latency:.0f}s — a significant UX concern for interactive use cases.
-    </div>
-    <div class="insight-box">
-        <b>📌 Early instability:</b> {len(low_success_weeks)} weeks fell below 90% success rate, concentrated
-        in the early launch period (Dec 2025 – Jan 2026), suggesting the product has stabilized over time.
-    </div>""", unsafe_allow_html=True)
-
-# ════════════════════════════════════════════════════════════════════════════
-# TAB 3 — UNIT ECONOMICS
-# ════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# TAB 3 — TECHNICAL HEALTH
+# ═══════════════════════════════════════════════════════════
 with tab3:
-    st.markdown("### Q3: Is the Research API financially sustainable?")
-    st.markdown("""
-    <div class="insight-box danger">
-        <b>Hypothesis:</b> The Research API is significantly more resource-intensive than other endpoints.
-        Understanding which usage patterns drive the worst unit economics is critical before scaling.
-    </div>""", unsafe_allow_html=True)
+    st.markdown("### Q3: Is the Research API reliable and consistent enough for production use?")
+    st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Rapid volume growth puts stress on infrastructure. As request volume grew through early 2026, failure rates likely increased and latency degraded.</div>', unsafe_allow_html=True)
 
-    # ── Assumption note ───────────────────────────────────────────────────
-    CREDIT_TO_USD = 0.008  # PAYGO rate from docs.tavily.com/documentation/api-credits
-    st.markdown(f"""
-    <div class="insight-box" style="border-left-color:#38bdf8; margin-bottom:1rem;">
-        <b>📋 Assumption:</b> 1 credit = <b>${CREDIT_TO_USD}</b> (Tavily's public PAYGO rate).
-        Monthly plan users pay $0.005–$0.0075/credit, so this is a <b>conservative upper bound on revenue</b>
-        — actual margins may be worse. Source: <a href="https://docs.tavily.com/documentation/api-credits"
-        style="color:#38bdf8">docs.tavily.com</a>.
-    </div>""", unsafe_allow_html=True)
-
-    rr_eco = rr[rr['STATUS']=='success'].dropna(subset=['REQUEST_COST','CREDITS_USED']).copy()
-
-    # REQUEST_COST is in USD; CREDITS_USED converted to USD using assumption
-    rr_eco['revenue_usd'] = rr_eco['CREDITS_USED'] * CREDIT_TO_USD
-    rr_eco['margin_usd'] = rr_eco['revenue_usd'] - rr_eco['REQUEST_COST']
-    rr_eco['cost_per_llm_call'] = rr_eco['REQUEST_COST'] / rr_eco['LLM_CALLS'].replace(0, np.nan)
-
-    avg_cost_usd   = rr_eco['REQUEST_COST'].mean()
-    avg_rev_usd    = rr_eco['revenue_usd'].mean()
-    avg_margin_usd = rr_eco['margin_usd'].mean()
-    pct_loss       = (rr_eco['margin_usd'] < 0).mean() * 100
-
-    k1, k2, k3, k4 = st.columns(4)
-    for col, val, label in [
-        (k1, f"${avg_cost_usd:.2f}", "Avg Serving Cost (USD)"),
-        (k2, f"${avg_rev_usd:.3f}", "Avg Revenue (USD @ PAYGO)"),
-        (k3, f"${avg_margin_usd:.2f}", "Avg Margin (USD)"),
-        (k4, f"{pct_loss:.0f}%", "Requests Served at a Loss"),
+    c1, c2, c3 = st.columns(3)
+    for col, val, label, note in [
+        (c1, "97–98%", "Current success rate", "up from 84% in Dec"),
+        (c2, "446s", "p95 response time", "1 in 20 requests > 7 min"),
+        (c3, "52s – 251s", "Weekly p50 range", "volatile, no clear trend"),
     ]:
         with col:
-            st.markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-value">{val}</div>
-                <div class="kpi-label">{label}</div>
-            </div>""", unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{note}</div></div>', unsafe_allow_html=True)
+
     st.markdown("")
+    st.markdown('<div class="section-header">Weekly success rate</div>', unsafe_allow_html=True)
+    ws = data['weekly_status']
+    fig = go.Figure(go.Scatter(
+        x=ws['week_str'], y=ws['success'], mode='lines+markers',
+        line=dict(color=COLORS['green'], width=2), fill='tozeroy',
+        fillcolor='rgba(29,158,117,0.07)', marker=dict(size=4),
+        hovertemplate='%{x}: %{y:.1%}<extra></extra>',
+    ))
+    fig.add_hline(y=0.95, line_dash='dot', line_color='#f59e0b',
+                  annotation_text='95% target', annotation_position='bottom right')
+    fig.update_layout(**PLOTLY_THEME, height=220, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(tickformat='.0%', range=[0.75, 1.02], gridcolor='#f1f5f9'),
+                      xaxis=dict(showgrid=False, tickangle=45))
+    st.plotly_chart(fig, use_container_width=True)
 
-    col_e, col_f = st.columns(2)
+    col_left, col_right = st.columns(2)
 
-    with col_e:
-        st.markdown('<div class="section-header">Avg Serving Cost vs Revenue by Model (USD)</div>', unsafe_allow_html=True)
-        model_eco = rr_eco.groupby('MODEL').agg(
-            avg_cost=('REQUEST_COST', 'mean'),
-            avg_revenue=('revenue_usd', 'mean'),
-            count=('REQUEST_COST', 'count')
-        ).reset_index()
-        model_eco = model_eco[model_eco['MODEL'].isin(['mini','pro'])]
+    with col_left:
+        st.markdown('<div class="section-header">Weekly latency — p50 vs p95 (seconds)</div>', unsafe_allow_html=True)
+        rt = data['rt_weekly']
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=rt['week_str'], y=rt['p50'], name='p50', mode='lines+markers',
+                                 line=dict(color=COLORS['blue'], width=2), marker=dict(size=4),
+                                 hovertemplate='%{x} p50: %{y:.0f}s<extra></extra>'))
+        fig.add_trace(go.Scatter(x=rt['week_str'], y=rt['p95'], name='p95', mode='lines+markers',
+                                 line=dict(color=COLORS['red'], width=2, dash='dash'), marker=dict(size=4),
+                                 hovertemplate='%{x} p95: %{y:.0f}s<extra></extra>'))
+        fig.update_layout(**PLOTLY_THEME, height=280, margin=dict(l=10, r=10, t=30, b=10),
+                          yaxis=dict(title='seconds', gridcolor='#f1f5f9'),
+                          xaxis=dict(showgrid=False, tickangle=45),
+                          legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
+        st.plotly_chart(fig, use_container_width=True)
 
-        fig10 = go.Figure()
-        fig10.add_trace(go.Bar(name='Avg Serving Cost (USD)', x=model_eco['MODEL'],
-                               y=model_eco['avg_cost'], marker_color='#f87171'))
-        fig10.add_trace(go.Bar(name='Avg Revenue (USD)', x=model_eco['MODEL'],
-                               y=model_eco['avg_revenue'], marker_color='#4ade80'))
-        fig10.update_layout(**PLOTLY_THEME, height=300, barmode='group',
-                            yaxis_title="USD ($)", xaxis_title="Model",
-                            legend=dict(orientation='h', y=1.1))
-        st.plotly_chart(fig10, use_container_width=True)
+    with col_right:
+        st.markdown('<div class="section-header">Mini vs pro — latency profile</div>', unsafe_allow_html=True)
+        ml = data['model_latency']
+        ml = ml[ml['MODEL'].isin(['mini', 'pro'])]
+        fig = go.Figure()
+        for model, color in [('mini', COLORS['blue']), ('pro', COLORS['purple'])]:
+            row = ml[ml['MODEL'] == model].iloc[0]
+            fig.add_trace(go.Bar(
+                name=model, x=['p50', 'p95'], y=[row['p50'], row['p95']], marker_color=color,
+                text=[f"{row['p50']:.0f}s", f"{row['p95']:.0f}s"], textposition='outside',
+                hovertemplate=f"{model} %{{x}}: %{{y:.0f}}s<extra></extra>",
+            ))
+        fig.update_layout(**PLOTLY_THEME, height=280, barmode='group',
+                          margin=dict(l=10, r=10, t=30, b=10),
+                          yaxis=dict(title='seconds', gridcolor='#f1f5f9', range=[0, 620]),
+                          xaxis=dict(showgrid=False),
+                          legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
+        st.plotly_chart(fig, use_container_width=True)
 
-    with col_f:
-        st.markdown('<div class="section-header">Serving Cost Distribution by Client Source (USD)</div>', unsafe_allow_html=True)
-        top_clients = rr_eco['CLIENT_SOURCE'].value_counts().head(6).index
-        fig11 = px.box(
-            rr_eco[rr_eco['CLIENT_SOURCE'].isin(top_clients)],
-            x='CLIENT_SOURCE', y='REQUEST_COST',
-            color='CLIENT_SOURCE', color_discrete_sequence=COLOR_SEQ,
-            title="Request Serving Cost by Client ($)"
-        )
-        fig11.update_layout(**PLOTLY_THEME, height=300, showlegend=False,
-                            xaxis_title="", yaxis_title="Serving Cost (USD)")
-        st.plotly_chart(fig11, use_container_width=True)
+    with st.expander("Findings & recommendation"):
+        st.markdown("""
+**Findings**
 
-    # ── Cost drivers ──────────────────────────────────────────────────────
-    st.markdown('<div class="section-header">Cost Drivers: Search Calls vs Serving Cost (USD)</div>', unsafe_allow_html=True)
+The hypothesis is disproved — reliability improved over time. Success rates stabilized at **97–98%** by March, up from 84–95% in Dec/Jan.
 
-    sample = rr_eco.sample(min(3000, len(rr_eco)), random_state=42)
-    fig12 = px.scatter(
-        sample, x='SEARCH_CALLS', y='REQUEST_COST',
-        color='MODEL', opacity=0.5, size_max=6,
-        color_discrete_map={'mini': '#6366f1', 'pro': '#f59e0b', 'auto': '#4ade80'},
-        title="Search Calls vs Serving Cost — sampled (USD)"
-    )
-    fig12.update_layout(**PLOTLY_THEME, height=300,
-                        xaxis_title="Search Calls", yaxis_title="Serving Cost (USD)")
-    st.plotly_chart(fig12, use_container_width=True)
+Latency tells a different story. The p50 bounces between **52s and 251s** week-to-week with no clear trend. The p95 sits at **446 seconds** — 1 in 20 requests takes over 7 minutes.
 
-    # ── Schema impact & weekly trend ──────────────────────────────────────
-    col_g, col_h = st.columns(2)
+The top 5% of requests (35+ LLM calls) run **2.3× slower** at **2.7× the cost** — either genuinely harder queries or the pipeline looping unnecessarily. Mini and pro are effectively two different products: mini (p50: 34s, p95: 75s) vs pro (p50: 306s, p95: 512s).
 
-    with col_g:
-        st.markdown('<div class="section-header">Output Schema Impact on Serving Cost</div>', unsafe_allow_html=True)
-        schema_eco = rr_eco.groupby('HAS_OUTPUT_SCHEMA').agg(
-            avg_cost=('REQUEST_COST', 'mean'),
-            count=('REQUEST_COST', 'count')
-        ).reset_index()
-        schema_eco['HAS_OUTPUT_SCHEMA'] = schema_eco['HAS_OUTPUT_SCHEMA'].map(
-            {True: 'With Schema', False: 'No Schema', 'TRUE': 'With Schema', 'FALSE': 'No Schema'})
-        fig13 = px.bar(schema_eco, x='HAS_OUTPUT_SCHEMA', y='avg_cost',
-                       color='HAS_OUTPUT_SCHEMA', color_discrete_sequence=['#6366f1','#38bdf8'],
-                       title="Avg Serving Cost: Schema vs No Schema (USD)")
-        fig13.update_layout(**PLOTLY_THEME, height=280, showlegend=False,
-                            xaxis_title="", yaxis_title="Avg Serving Cost (USD)")
-        st.plotly_chart(fig13, use_container_width=True)
+**Recommendation**
 
-    with col_h:
-        st.markdown('<div class="section-header">Weekly Avg Cost vs Revenue per Request (USD)</div>', unsafe_allow_html=True)
-        weekly_cost = rr_eco.groupby('week').agg(
-            avg_cost=('REQUEST_COST', 'mean'),
-            avg_revenue=('revenue_usd', 'mean')
-        ).reset_index()
-        fig14 = go.Figure()
-        fig14.add_trace(go.Scatter(x=weekly_cost['week'], y=weekly_cost['avg_cost'],
-                                   name='Avg Serving Cost (USD)', line=dict(color='#f87171', width=2)))
-        fig14.add_trace(go.Scatter(x=weekly_cost['week'], y=weekly_cost['avg_revenue'],
-                                   name='Avg Revenue (USD)', line=dict(color='#4ade80', width=2)))
-        fig14.update_layout(**PLOTLY_THEME, height=280,
-                            yaxis_title="USD ($)", legend=dict(orientation='h', y=1.1))
-        st.plotly_chart(fig14, use_container_width=True)
-
-    st.markdown(f"""
-    <div class="insight-box danger">
-        <b>🚨 Severe unit economics gap:</b> Average serving cost is <b>${avg_cost_usd:.2f}</b> per request,
-        while average revenue at PAYGO rates is only <b>${avg_rev_usd:.3f}</b> — meaning the API loses
-        ~${abs(avg_margin_usd):.2f} on average per successful request. {pct_loss:.0f}% of requests are served at a loss.
-    </div>
-    <div class="insight-box warning">
-        <b>⚠️ Pro model widens the gap:</b> Pro requests cost ~4× more to serve than mini, but revenue
-        does not scale proportionally with credits charged — making pro the primary driver of losses.
-    </div>
-    <div class="insight-box">
-        <b>📌 Search calls are the primary cost driver:</b> Serving cost scales strongly with the number of
-        web search operations, making search depth the most actionable lever for cost optimization.
-    </div>""", unsafe_allow_html=True)
+Cap LLM calls per request to contain the tail. Document mini vs pro expectations explicitly. Investigate p50 volatility by correlating with infrastructure cost data. Keep pushing on the 2–3% failure rate — at current volume that's 200–300 users failing per week.
+        """)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 4 — INFRASTRUCTURE
@@ -631,7 +446,6 @@ with tab4:
     infra_pct = total_infra / total_cost * 100
     model_pct = total_model / total_cost * 100
 
-    # Cost per research request (total infra cost / research request count)
     hourly_requests = rr.groupby(rr['hour_floor'].dt.floor('h')).size().reset_index(name='request_count')
     hourly_requests.columns = ['hour', 'request_count']
     ic_tmp = ic.copy()
@@ -694,9 +508,6 @@ with tab4:
 
     st.markdown("")
 
-
-
-    # ── Cost breakdown with interactive toggle — Q1: Which component dominates? ──
     import json
     component_totals = ic[infra_cols + model_cols].sum().reset_index()
     component_totals.columns = ['component', 'total']
@@ -812,7 +623,7 @@ with tab4:
 """
     st.components.v1.html(html_code, height=480)
 
-    # ── Fixed vs variable — Q2: How much is fixed vs variable? ───────────
+    # Fixed vs variable
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
     import json as _json
@@ -1027,7 +838,7 @@ with tab4:
 """
     st.components.v1.html(html_fv, height=1050)
 
-    # ── Cost spikes — Q3: Are there spikes? ──────────────────────────────
+    # Cost spikes
     st.markdown('<div class="section-header">Cost Spikes — Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
     import json as _json2
@@ -1109,7 +920,8 @@ with tab4:
       const ctx2=chart.ctx, xs=chart.scales.x, ys=chart.scales.y;
       const yPx=ys.getPixelForValue(threshold);
       if(yPx<ys.top||yPx>ys.bottom) return;
-      ctx2.save(); ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
+      ctx2.save();
+      ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
       ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
       ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
       ctx2.fillText('mean+2σ', xs.right-55, yPx-4); ctx2.restore();
@@ -1172,7 +984,7 @@ with tab4:
 """
     st.components.v1.html(html_spike, height=420)
 
-    # ── Cost efficiency — Q4: Cost per request over time ─────────────────
+    # Cost efficiency
     st.markdown('<div class="section-header">Cost Efficiency — Cost per Research Request Over Time (Weekly)</div>', unsafe_allow_html=True)
 
     eff_weekly = merged_spike.copy()
@@ -1217,4 +1029,3 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
-
