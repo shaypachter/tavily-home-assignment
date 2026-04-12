@@ -95,8 +95,19 @@ def load_data():
     w0_agg = w0.groupby('USER_ID').agg(
         retained=('retained', 'first'),
         primary_client=('CLIENT_SOURCE', lambda x: x.mode()[0]),
+        w0_requests=('REQUEST_ID', 'count'),
     ).reset_index()
     w0_agg = w0_agg.merge(users_df[['USER_ID', 'PLAN', 'HAS_PAYGO']], on='USER_ID', how='left')
+
+    import pandas as _pd
+    _bins = [0, 1, 2, 5, 10, 50, 999]
+    _labels = ['1', '2', '3-5', '6-10', '11-50', '50+']
+    w0_agg['req_bucket'] = _pd.cut(w0_agg['w0_requests'], bins=_bins, labels=_labels)
+    w0_requests_ret = (
+        w0_agg.groupby('req_bucket', observed=True)['retained']
+        .agg(['mean', 'count']).reset_index()
+        .rename(columns={'req_bucket': 'bucket', 'mean': 'retention_rate', 'count': 'user_count'})
+    )
 
     plan_ret = (
         w0_agg.groupby('PLAN')['retained'].agg(['mean', 'count']).reset_index()
@@ -150,6 +161,7 @@ def load_data():
         total_users=total_users, one_done=one_done, power=power,
         success_count=len(success),
         uncharged_count=(success['CREDITS_USED'] == 0).sum(),
+        w0_requests_ret=w0_requests_ret,
     )
 
 data = load_data()
@@ -265,6 +277,22 @@ with tab1:
     fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
                       yaxis=dict(tickformat='.0%', range=[0, 0.65], gridcolor='#f1f5f9', title='Retention rate'),
                       xaxis=dict(showgrid=False, title='Segment'))
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown('<div class="section-header">Retention rate by week-0 request volume</div>', unsafe_allow_html=True)
+    w0r = data['w0_requests_ret']
+    fig = go.Figure(go.Bar(
+        x=w0r['bucket'],
+        y=w0r['retention_rate'],
+        marker_color=COLORS['blue'],
+        text=[f"{v:.0%}" for v in w0r['retention_rate']],
+        textposition='outside',
+        customdata=w0r['user_count'],
+        hovertemplate='%{x} requests: %{y:.0%} retained (%{customdata:,} users)<extra></extra>',
+    ))
+    fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(tickformat='.0%', range=[0, 0.5], gridcolor='#f1f5f9', title='Retention rate'),
+                      xaxis=dict(showgrid=False, title='Requests made in week 0'))
     st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Findings & recommendation"):
