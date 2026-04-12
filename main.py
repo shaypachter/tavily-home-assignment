@@ -327,7 +327,7 @@ The users who integrate properly (MCP, PayGo, higher plans) retain well. The iss
 # ═══════════════════════════════════════════════════════════
 with tab2:
     st.markdown("### Q2: Is the Research API profitable? Are there cases of 'money on the floor'?")
-    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled during running, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and a maybe a profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="insight-box warning"><b>Hypothesis:</b> When requests fail or are cancelled during running, the system has already consumed compute, LLM calls, and search operations but likely charges nothing. This partial work represents unrecovered cost and maybe a profitability leak. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might help improve profitability.</div>', unsafe_allow_html=True)
 
     recovery_rate = data['charged_cost'] / data['total_cost_rr']
     uncharged_pct = data['uncharged_cost'] / data['total_cost_rr']
