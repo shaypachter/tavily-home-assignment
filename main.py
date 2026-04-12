@@ -148,6 +148,15 @@ def load_data():
     total_revenue_usd = rr_clean['CREDITS_USED'].sum() * CREDIT_TO_USD
     recovery_rate_usd = total_revenue_usd / total_cost_rr
 
+    success_with_plan = success.merge(users_df[['USER_ID','PLAN']], on='USER_ID', how='left')
+    uncharged_success = success[success['CREDITS_USED'] == 0]
+    uncharged_with_plan = uncharged_success.merge(users_df[['USER_ID','PLAN']], on='USER_ID', how='left')
+    plan_uncharged = uncharged_with_plan.groupby('PLAN').size().reset_index(name='uncharged_count')
+    plan_total = success_with_plan.groupby('PLAN').size().reset_index(name='total_count')
+    plan_uncharged_df = plan_uncharged.merge(plan_total, on='PLAN')
+    plan_uncharged_df['pct'] = plan_uncharged_df['uncharged_count'] / plan_uncharged_df['total_count']
+    plan_uncharged_df = plan_uncharged_df.sort_values('uncharged_count', ascending=False)
+
     status_stats = []
     for _s in ['success', 'failed', 'cancelled', 'not_entitled']:
         _sub = rr_clean[rr_clean['STATUS'] == _s]
@@ -188,6 +197,7 @@ def load_data():
         recovery_rate_usd=recovery_rate_usd,
         total_revenue_usd=total_revenue_usd,
         status_stats_df=status_stats_df,
+        plan_uncharged_df=plan_uncharged_df,
     )
 
 data = load_data()
@@ -390,7 +400,21 @@ with tab2:
     uncharged_cost_abs = data['uncharged_cost']
 
     with c1:
-        charged_success = data['success_count'] - uncharged_count
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{uncharged_pct:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
+        </div>''', unsafe_allow_html=True)
+
+    with c2:
+        st.markdown(f'''<div class="kpi-card">
+            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
+            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
+            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
+        </div>''', unsafe_allow_html=True)
+
+    with c3:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
             <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
@@ -399,60 +423,44 @@ with tab2:
             <div style="font-size:0.72rem;color:#64748b;margin-top:4px;">charged 0 credits despite full delivery</div>
         </div>''', unsafe_allow_html=True)
 
-    with c2:
-        sdf = data['status_stats_df']
-        bar_rows = ""
-        bar_colors = {'success': '#E24B4A', 'failed': '#B4B2A9', 'cancelled': '#B4B2A9', 'not_entitled': '#B4B2A9'}
-        total_unrecovered = sum(sdf['unrecovered'])
-        for _, r in sdf.iterrows():
-            if r['unrecovered'] <= 0:
-                continue
-            pct = r['unrecovered'] / total_unrecovered * 100
-            color = bar_colors.get(r['status'], '#B4B2A9')
-            bar_rows += (
-                f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">'
-                f'<div style="font-size:10px;color:#64748b;width:70px;flex-shrink:0;">{r["status"]}</div>'
-                f'<div style="flex:1;background:#f1f5f9;border-radius:3px;height:8px;">'
-                f'<div style="width:{pct:.1f}%;background:{color};height:8px;border-radius:3px;"></div>'
-                f'</div>'
-                f'<div style="font-size:10px;color:#64748b;width:50px;text-align:right;">${r["unrecovered"]:,.0f}</div>'
-                f'</div>'
-            )
-        sdf = data['status_stats_df']
-        total_unrecovered = sum(r['unrecovered'] for _, r in sdf.iterrows())
-        success_unrecovered = float(sdf[sdf['status']=='success']['unrecovered'].iloc[0])
-        success_pct = success_unrecovered / total_unrecovered * 100
-        other_pct = 100 - success_pct
-        stacked_bar = (
-            '<div style="display:flex;border-radius:3px;overflow:hidden;height:8px;margin-top:10px;margin-bottom:6px;">'
-            f'<div style="width:{success_pct:.1f}%;background:#E24B4A;"></div>'
-            f'<div style="width:{other_pct:.1f}%;background:#B4B2A9;"></div>'
-            '</div>'
-            '<div style="display:flex;gap:12px;font-size:10px;color:#64748b;">'
-            f'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#E24B4A;margin-right:3px;"></span>success ${success_unrecovered:,.0f} ({success_pct:.0f}%)</span>'
-            f'<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#B4B2A9;margin-right:3px;"></span>other ${total_unrecovered-success_unrecovered:,.0f} ({other_pct:.0f}%)</span>'
-            '</div>'
+    st.markdown("")
+    st.markdown('<div class="section-header">Uncharged successful requests by plan</div>', unsafe_allow_html=True)
+    pu = data['plan_uncharged_df']
+    pu_rows = ""
+    for _, row in pu.iterrows():
+        share_pct = row['uncharged_count'] / pu['uncharged_count'].sum() * 100
+        pu_rows += (
+            '<tr style="border-bottom:0.5px solid #e2e8f0;">'
+            f'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#0f172a;">{row["PLAN"]}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["uncharged_count"]):,}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#0f172a;">{int(row["total_count"]):,}</td>'
+            f'<td style="padding:9px 12px;font-size:13px;color:#E24B4A;font-weight:500;">{row["pct"]:.0%}</td>'
+            f'<td style="padding:9px 12px;width:35%;">'
+            f'<div style="position:relative;height:10px;border-radius:3px;background:#E24B4A;width:{share_pct:.1f}%;">'
+            f'<span style="position:absolute;left:calc(100% + 5px);top:50%;transform:translateY(-50%);font-size:10px;color:#64748b;white-space:nowrap;">{share_pct:.0f}%</span>'
+            f'</div></td>'
+            '</tr>'
         )
-        st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{uncharged_pct:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
-            {stacked_bar}
-        </div>''', unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f'''<div class="kpi-card">
-            <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
-            <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
-            <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px;">* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users</div>
-        </div>''', unsafe_allow_html=True)
+    th = 'padding:7px 12px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;text-align:left;color:#64748b;'
+    pu_table = (
+        '<table style="width:100%;border-collapse:collapse;">'
+        '<thead><tr style="border-bottom:1px solid #e2e8f0;">'
+        f'<th style="{th}">Plan</th>'
+        f'<th style="{th}">Uncharged requests</th>'
+        f'<th style="{th}">Total requests</th>'
+        f'<th style="{th}">% uncharged</th>'
+        f'<th style="{th}">Share of all uncharged</th>'
+        '</tr></thead>'
+        f'<tbody>{pu_rows}</tbody>'
+        '</table>'
+    )
+    st.markdown(pu_table, unsafe_allow_html=True)
 
     st.markdown("")
     col_left, col_right = st.columns([1, 2])
 
     with col_left:
-        st.markdown('<div class="section-header">How is the total serving cost split?</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Cost split: charged vs uncharged</div>', unsafe_allow_html=True)
         _recovered = data['charged_cost']
         _uncharged_success = data['uncharged_cost']
         _fc = data['fc_cost']
@@ -474,7 +482,7 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
-        st.markdown('<div class="section-header">Charge rate by plan — % of successful requests billed</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Successful uncharged requests by plan</div>', unsafe_allow_html=True)
         pc = data['plan_charge']
         bar_colors = [COLORS['green'] if r >= 0.8 else COLORS['red'] if r == 0 else COLORS['blue'] for r in pc['charge_rate']]
         fig = go.Figure(go.Bar(
