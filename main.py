@@ -236,7 +236,7 @@ with tab1:
         ))
         fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
                           xaxis=dict(showgrid=False, dtick=1, title='Weeks since first use'),
-                          yaxis=dict(tickformat='.0%', gridcolor='#f1f5f9'))
+                          yaxis=dict(tickformat='.0%', gridcolor='#f1f5f9', title='Retention rate'))
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
@@ -249,8 +249,8 @@ with tab1:
             hovertemplate='%{x}: %{y:.0%}<extra></extra>',
         ))
         fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
-                          yaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9'),
-                          xaxis=dict(showgrid=False))
+                          yaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9', title='Retention rate'),
+                          xaxis=dict(showgrid=False, title='Plan'))
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
@@ -263,8 +263,8 @@ with tab1:
         customdata=seg_labels, hovertemplate='%{customdata}: %{y:.0%}<extra></extra>',
     ))
     fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(tickformat='.0%', range=[0, 0.65], gridcolor='#f1f5f9'),
-                      xaxis=dict(showgrid=False))
+                      yaxis=dict(tickformat='.0%', range=[0, 0.65], gridcolor='#f1f5f9', title='Retention rate'),
+                      xaxis=dict(showgrid=False, title='Segment'))
     st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Findings & recommendation"):
@@ -331,8 +331,8 @@ with tab2:
             hovertemplate='%{y}: %{x:.0%}<extra></extra>',
         ))
         fig.update_layout(**PLOTLY_THEME, height=300, margin=dict(l=10, r=10, t=10, b=10),
-                          xaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9'),
-                          yaxis=dict(showgrid=False))
+                          xaxis=dict(tickformat='.0%', range=[0, 1.15], gridcolor='#f1f5f9', title='% of successful requests charged'),
+                          yaxis=dict(showgrid=False, title='Plan'))
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Findings & recommendation"):
@@ -380,8 +380,8 @@ with tab3:
     fig.add_hline(y=0.95, line_dash='dot', line_color='#f59e0b',
                   annotation_text='95% target', annotation_position='bottom right')
     fig.update_layout(**PLOTLY_THEME, height=220, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(tickformat='.0%', range=[0.75, 1.02], gridcolor='#f1f5f9'),
-                      xaxis=dict(showgrid=False, tickangle=45))
+                      yaxis=dict(tickformat='.0%', range=[0.75, 1.02], gridcolor='#f1f5f9', title='Success rate'),
+                      xaxis=dict(showgrid=False, tickangle=45, title='Week'))
     st.plotly_chart(fig, use_container_width=True)
 
     col_left, col_right = st.columns(2)
@@ -397,8 +397,8 @@ with tab3:
                                  line=dict(color=COLORS['red'], width=2, dash='dash'), marker=dict(size=4),
                                  hovertemplate='%{x} p95: %{y:.0f}s<extra></extra>'))
         fig.update_layout(**PLOTLY_THEME, height=280, margin=dict(l=10, r=10, t=30, b=10),
-                          yaxis=dict(title='seconds', gridcolor='#f1f5f9'),
-                          xaxis=dict(showgrid=False, tickangle=45),
+                          yaxis=dict(title='Response time (seconds)', gridcolor='#f1f5f9'),
+                          xaxis=dict(showgrid=False, tickangle=45, title='Week'),
                           legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -416,8 +416,8 @@ with tab3:
             ))
         fig.update_layout(**PLOTLY_THEME, height=280, barmode='group',
                           margin=dict(l=10, r=10, t=30, b=10),
-                          yaxis=dict(title='seconds', gridcolor='#f1f5f9', range=[0, 620]),
-                          xaxis=dict(showgrid=False),
+                          yaxis=dict(title='Response time (seconds)', gridcolor='#f1f5f9', range=[0, 620]),
+                          xaxis=dict(showgrid=False, title='Latency percentile'),
                           legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
         st.plotly_chart(fig, use_container_width=True)
 
