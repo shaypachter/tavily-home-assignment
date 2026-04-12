@@ -308,7 +308,7 @@ with tab1:
     fig = go.Figure(go.Bar(
         x=w0r['bucket'],
         y=w0r['retention_rate'],
-        marker_color=COLORS['blue'],
+        marker_color='#0C447C',
         text=[f"{v:.0%}" for v in w0r['retention_rate']],
         textposition='outside',
         customdata=w0r['user_count'],
