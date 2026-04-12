@@ -381,63 +381,7 @@ with tab2:
     st.markdown("")
 
     # Status chart
-    st.markdown('<div class="section-header">Requests & cost by status — charged vs uncharged</div>', unsafe_allow_html=True)
-    sdf = data['status_stats_df']
 
-    statuses = sdf['status'].tolist()
-    charged_reqs = sdf['charged_req'].tolist()
-    uncharged_reqs = sdf['uncharged_req'].tolist()
-    recovered_costs = sdf['recovered'].tolist()
-    unrecovered_costs = sdf['unrecovered'].tolist()
-    pct_charged = [f"{v:.1%}" for v in sdf['pct_charged'].tolist()]
-    pct_recovered = [f"{v:.1%}" for v in (sdf['recovered'] / sdf['total_cost'].replace(0, float('nan'))).tolist()]
-
-    from plotly.subplots import make_subplots as _make_subplots
-    fig_status = _make_subplots(
-        rows=1, cols=2,
-        subplot_titles=('Requests (#)', 'Cost (USD)'),
-        horizontal_spacing=0.12
-    )
-
-    colors_charged = '#1D9E75'
-    colors_uncharged = '#E24B4A'
-
-    fig_status.add_trace(go.Bar(
-        name='Charged', x=statuses, y=charged_reqs,
-        marker_color=colors_charged, legendgroup='charged',
-        hovertemplate='%{x}<br>Charged: %{y:,}<extra></extra>',
-    ), row=1, col=1)
-    fig_status.add_trace(go.Bar(
-        name='Uncharged', x=statuses, y=uncharged_reqs,
-        marker_color=colors_uncharged, legendgroup='uncharged',
-        hovertemplate='%{x}<br>Uncharged: %{y:,}<extra></extra>',
-    ), row=1, col=1)
-
-    fig_status.add_trace(go.Bar(
-        name='Recovered ($)', x=statuses, y=recovered_costs,
-        marker_color=colors_charged, legendgroup='charged', showlegend=False,
-        hovertemplate='%{x}<br>Recovered: $%{y:,.0f}<extra></extra>',
-    ), row=1, col=2)
-    fig_status.add_trace(go.Bar(
-        name='Unrecovered ($)', x=statuses, y=unrecovered_costs,
-        marker_color=colors_uncharged, legendgroup='uncharged', showlegend=False,
-        hovertemplate='%{x}<br>Unrecovered: $%{y:,.0f}<extra></extra>',
-    ), row=1, col=2)
-
-    fig_status.update_layout(
-        height=360, barmode='stack',
-        paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
-        font_family='DM Sans', font_color='#0f172a',
-        legend=dict(orientation='h', yanchor='bottom', y=1.05, xanchor='left', x=0),
-        margin=dict(l=10, r=10, t=50, b=10),
-        bargap=0.25,
-    )
-    fig_status.update_xaxes(showgrid=False, tickfont=dict(color='#0f172a'))
-    fig_status.update_yaxes(gridcolor='#f1f5f9', tickfont=dict(color='#0f172a'))
-    fig_status.update_yaxes(title_text='Number of requests', row=1, col=1)
-    fig_status.update_yaxes(title_text='Cost in USD', row=1, col=2)
-    st.plotly_chart(fig_status, use_container_width=True)
-    st.caption("* Cost recovery assumes $0.008/credit (PayGo rate)")
 
     st.markdown("")
 
@@ -445,7 +389,7 @@ with tab2:
     uncharged_count = data['uncharged_count']
     uncharged_cost_abs = data['uncharged_cost']
     for col, val, label, note in [
-        (c1, f"{uncharged_req_pct:.0%} ({uncharged_count:,} requests)", "Successful but uncharged", "successful requests with 0 credits charged"),
+        (c1, f"{uncharged_req_pct:.0%} of successful requests ({uncharged_count:,})", "Successful but uncharged", "charged 0 credits despite full delivery"),
         (c2, f"{uncharged_pct:.0%}", "Cost delivered free (USD)", f"~${uncharged_cost_abs:,.0f} in serving cost (REQUEST_COST)"),
         (c3, f"{data['recovery_rate_usd']:.0%}", "Revenue / serving cost", f"* assumes $0.008/credit (PayGo rate) — actual may be lower for subscription users. Est. revenue: ${data['total_revenue_usd']:,.0f}"),
     ]:
