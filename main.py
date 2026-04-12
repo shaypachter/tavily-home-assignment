@@ -179,6 +179,8 @@ with st.sidebar:
     st.markdown(f"`{rr['TIMESTAMP'].min().date()}` → `{rr['TIMESTAMP'].max().date()}`")
     st.markdown("**Total requests**")
     st.markdown(f"`{len(rr):,}`")
+    st.markdown("**Unique users**")
+    st.markdown(f"`{rr['USER_ID'].nunique():,}`")
     st.markdown("---")
     st.markdown("**Questions**")
     st.markdown("1. 📈 Retention: Do users come back?")
@@ -191,25 +193,7 @@ st.markdown("# Tavily Research API — Leadership Dashboard")
 st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset · Complete weeks only*")
 st.markdown("---")
 
-# Top KPIs
-total_requests = len(rr)
-success_rate = (rr['STATUS'] == 'success').mean() * 100
-unique_users = rr['USER_ID'].nunique()
-p50_latency = rr['RESPONSE_TIME_SECONDS'].median()
-total_infra_cost = ic['total_cost'].sum()
 
-c1, c2, c3, c4, c5 = st.columns(5)
-for col, val, label in [
-    (c1, f"{total_requests:,}", "Total Requests"),
-    (c2, f"{success_rate:.1f}%", "Success Rate"),
-    (c3, f"{unique_users:,}", "Unique Users"),
-    (c4, f"{p50_latency:.0f}s", "P50 Latency"),
-    (c5, f"${total_infra_cost:,.0f}", "Total Infra Cost"),
-]:
-    with col:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{val}</div><div class="kpi-label">{label}</div></div>', unsafe_allow_html=True)
-
-st.markdown("")
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "📈  Retention",
