@@ -206,7 +206,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # TAB 1 — RETENTION
 # ═══════════════════════════════════════════════════════════
 with tab1:
-    st.markdown("### Q1: Does the Research API retain users after their first week?")
+    st.markdown("### Q1: Does the Research API retain users after their first week? What behaviors in the first session predict whether a user will come back?")
     st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Most users treat the Research API as a one-time experiment rather than integrating it into a recurring workflow. Users who arrive with a real integration (not just exploration) - signaled by their client source, usage depth, and plan type - will retain at significantly higher rates.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
