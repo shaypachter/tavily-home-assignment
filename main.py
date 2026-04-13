@@ -1095,7 +1095,7 @@ with tab4:
 <style>
   * {{ box-sizing:border-box; font-family:sans-serif; }}
   body {{ margin:0; background:transparent; }}
-  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1rem; }}
+  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.5rem; }}
   .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#0f172a; margin:0 0 0.4rem; }}
   .sdesc  {{ font-size:11px; color:#0f172a; margin:0 0 0.75rem; }}
   .tbtn {{ padding:3px 10px; font-size:11px; border-radius:6px; cursor:pointer; transition:all 150ms; }}
@@ -1140,7 +1140,6 @@ with tab4:
   const scatterBelow = {scatter_below_js};
   const scatterAbove = {scatter_above_js};
   const gc='rgba(0,0,0,0.07)', tc='#0f172a';
-  updateLegend();
   const toPoint = (d,i) => ({{ x:d.corr, y:d.total, r:Math.max(5,Math.sqrt(d.total/800)), label:d.label }});
   new Chart(document.getElementById('scatterChart'), {{
     type:'bubble',
@@ -1178,7 +1177,7 @@ with tab4:
   }});
 </script>
 """
-    st.components.v1.html(html_fv, height=1050)
+    st.components.v1.html(html_fv, height=680)
 
     st.markdown('<div class="section-header">Cost Spikes - Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
