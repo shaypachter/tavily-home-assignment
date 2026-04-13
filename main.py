@@ -974,7 +974,7 @@ with tab4:
   }}
 
   function resizeChart(n) {{
-    const h = Math.max(200, n * 32 + 80);
+    const h = Math.max(120, n * 22 + 60);
     document.getElementById('chartWrap').style.height = h + 'px';
   }}
 
@@ -1026,7 +1026,7 @@ with tab4:
   }});
 </script>
 """
-    st.components.v1.html(html_code, height=700)
+    st.components.v1.html(html_code, height=560)
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
