@@ -913,9 +913,6 @@ with tab4:
   body {{ margin:0; background:transparent; }}
   .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; }}
   .tbtn.active {{ background:#1e293b; color:#ffffff; }}
-  .card {{ background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem; }}
-  .slabel {{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#0f172a; margin:0 0 0.75rem; }}
-  #legend {{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; font-size:11px; color:#0f172a; }}
 </style>
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
   <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
@@ -923,81 +920,95 @@ with tab4:
   <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
   <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
 </div>
-<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
-  <div class="card">
-    <p class="slabel">Cost share by component</p>
-    <div style="position:relative;width:100%;height:320px;"><canvas id="barChart"></canvas></div>
-  </div>
-  <div class="card">
-    <p class="slabel">% of total cost</p>
-    <div id="legend"></div>
-    <div style="position:relative;width:100%;height:280px;">
-      <canvas id="pieChart"></canvas>
-      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;">
-        <div id="centerPct" style="font-size:22px;font-weight:500;color:#0f172a;"></div>
-        <div id="centerSub" style="font-size:11px;color:#0f172a;"></div>
-      </div>
-    </div>
-  </div>
+<div style="position:relative;width:100%;height:400px;">
+  <canvas id="barChart"></canvas>
 </div>
 <script>
   const TOTAL = {grand_total};
   const infraData = {infra_js};
   const modelData = {model_js};
   const allData   = {all_js};
+  let currentFilter = 'all';
+
+  function getSubtotal(data) {{ return data.reduce((s,d)=>s+d.value,0); }}
+
   function getData(f) {{
-    if (f==="infra")  return {{ bar:[...infraData].sort((a,b)=>a.value-b.value), pie:infraData }};
-    if (f==="models") return {{ bar:[...modelData].sort((a,b)=>a.value-b.value), pie:modelData }};
-    return {{ bar:allData, pie:allData }};
+    if (f==="infra")  return [...infraData].sort((a,b)=>a.value-b.value);
+    if (f==="models") return [...modelData].sort((a,b)=>a.value-b.value);
+    return allData;
   }}
-  function buildLegend(data) {{
-    document.getElementById("legend").innerHTML = data.map(d=>
-      `<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${{d.color}};display:inline-block;border:1px solid #e2e8f0;"></span>${{d.label}} ${{(d.value/TOTAL*100).toFixed(1)}}%</span>`
-    ).join("");
-  }}
-  function updateCenter(f, pie) {{
-    const t=pie.reduce((s,d)=>s+d.value,0);
-    document.getElementById("centerPct").textContent=(t/TOTAL*100).toFixed(1)+"%";
-    document.getElementById("centerSub").textContent=f==="all"?"of total":f==="infra"?"infrastructure":"models";
-  }}
+
   function setFilter(f) {{
+    currentFilter = f;
     ["all","infra","models"].forEach(x=>document.getElementById("btn-"+x).classList.toggle("active",x===f));
-    const {{bar,pie}}=getData(f);
-    const rem=TOTAL-pie.reduce((s,d)=>s+d.value,0);
-    barChart.data.labels=bar.map(d=>d.label);
-    barChart.data.datasets[0].data=bar.map(d=>d.value);
-    barChart.data.datasets[0].backgroundColor=bar.map(d=>d.color);
+    const bar = getData(f);
+    const subtotal = getSubtotal(bar);
+    barChart.data.labels = bar.map(d=>d.label);
+    barChart.data.datasets[0].data = bar.map(d=>d.value);
+    barChart.data.datasets[0].backgroundColor = bar.map(d=>d.color);
+    barChart.options.plugins.tooltip.callbacks.label = function(ctx) {{
+      const val = ctx.raw;
+      const pctOfAll = (val/TOTAL*100).toFixed(1);
+      const pctOfGroup = (val/subtotal*100).toFixed(1);
+      const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
+      if (f === 'all') {{
+        return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+      }} else {{
+        const groupName = f === 'infra' ? 'infrastructure' : 'models';
+        return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
+      }}
+    }};
     barChart.update();
-    pieChart.data.labels=[...pie.map(d=>d.label),f!=="all"?"Other":null].filter(Boolean);
-    pieChart.data.datasets[0].data=[...pie.map(d=>d.value),f!=="all"?rem:null].filter(v=>v!==null);
-    pieChart.data.datasets[0].backgroundColor=[...pie.map(d=>d.color),f!=="all"?"#e2e8f0":null].filter(Boolean);
-    pieChart.update();
-    buildLegend(pie); updateCenter(f,pie);
   }}
-  const {{bar:ib,pie:ip}}=getData("all");
-  const gc="rgba(0,0,0,0.07)",tc="#0f172a";
-  const barChart=new Chart(document.getElementById("barChart"),{{
-    type:"bar",
-    data:{{labels:ib.map(d=>d.label),datasets:[{{data:ib.map(d=>d.value),backgroundColor:ib.map(d=>d.color),borderRadius:3}}]}},
-    options:{{responsive:true,maintainAspectRatio:false,indexAxis:"y",
-      plugins:{{legend:{{display:false}}}},
-      scales:{{x:{{ticks:{{color:tc,font:{{size:10}},callback:v=>"$"+Math.round(v/1000)+"k"}},grid:{{color:gc}}}},
-               y:{{ticks:{{color:tc,font:{{size:10}}}},grid:{{color:gc}}}}}}
-    }}
-  }});
-  const pieChart=new Chart(document.getElementById("pieChart"),{{
-    type:"doughnut",
-    data:{{labels:ip.map(d=>d.label),datasets:[{{data:ip.map(d=>d.value),backgroundColor:ip.map(d=>d.color),borderWidth:0}}]}},
-    options:{{responsive:true,maintainAspectRatio:false,cutout:"62%",
-      plugins:{{legend:{{display:false}},
-        tooltip:{{callbacks:{{label:ctx=>`${{(ctx.raw/TOTAL*100).toFixed(1)}}% of total (${{Math.round(ctx.raw/1000)}}k)`}}}}
+
+  const ib = getData('all');
+  const subtotalAll = getSubtotal(ib);
+  const gc="rgba(0,0,0,0.07)", tc="#0f172a";
+
+  const barChart = new Chart(document.getElementById("barChart"), {{
+    type: "bar",
+    data: {{
+      labels: ib.map(d=>d.label),
+      datasets: [{{
+        data: ib.map(d=>d.value),
+        backgroundColor: ib.map(d=>d.color),
+        borderRadius: 3
+      }}]
+    }},
+    options: {{
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: "y",
+      plugins: {{
+        legend: {{ display: false }},
+        tooltip: {{
+          callbacks: {{
+            label: function(ctx) {{
+              const val = ctx.raw;
+              const pctOfAll = (val/TOTAL*100).toFixed(1);
+              const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
+              return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+            }}
+          }}
+        }}
+      }},
+      scales: {{
+        x: {{
+          ticks: {{ color: tc, font: {{size:10}}, callback: v => "$" + Math.round(v/1000) + "k" }},
+          grid: {{ color: gc }},
+          title: {{ display: true, text: 'Cost (USD)', color: tc, font: {{size:10}} }}
+        }},
+        y: {{
+          ticks: {{ color: tc, font: {{size:10}} }},
+          grid: {{ display: false }},
+          title: {{ display: true, text: 'Component', color: tc, font: {{size:10}} }}
+        }}
       }}
     }}
   }});
-  buildLegend(ip); updateCenter("all",ip);
 </script>
 """
-    st.components.v1.html(html_code, height=480)
+    st.components.v1.html(html_code, height=460)
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
@@ -1166,9 +1177,9 @@ with tab4:
       responsive:true, maintainAspectRatio:false,
       plugins:{{ legend:{{ display:false }} }},
       scales:{{
-        x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }} }},
-        y:{{ ticks:{{ color:tc, font:{{size:10}}, callback:v=>'$'+v.toFixed(0) }}, grid:{{ color:gc }}, title:{{ display:true, text:'Cost ($/hr)', color:tc, font:{{size:10}} }} }},
-        y2:{{ position:'right', ticks:{{ color:'#4ade80', font:{{size:10}} }}, grid:{{ display:false }}, title:{{ display:true, text:'Requests/hr', color:'#4ade80', font:{{size:10}} }} }}
+        x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }}, title:{{ display:true, text:'Week', color:tc, font:{{size:10}} }} }},
+        y:{{ ticks:{{ color:tc, font:{{size:10}}, callback:v=>'$'+v.toFixed(0) }}, grid:{{ color:gc }}, title:{{ display:true, text:'Avg hourly cost (USD)', color:tc, font:{{size:10}} }} }},
+        y2:{{ position:'right', ticks:{{ color:'#4ade80', font:{{size:10}} }}, grid:{{ display:false }}, title:{{ display:true, text:'Research requests per hour', color:'#4ade80', font:{{size:10}} }} }}
       }}
     }}
   }});
