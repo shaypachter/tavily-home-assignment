@@ -2,15 +2,14 @@ import os
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import warnings
+import json
 warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="Tavily Research API — Analytics Dashboard",
-    page_icon=None,
+    page_icon=" ",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -41,7 +40,6 @@ PLOTLY_THEME = dict(
     template="plotly_white", paper_bgcolor="#ffffff", plot_bgcolor="#ffffff",
     font_family="DM Sans", font_color="#0f172a",
 )
-COLOR_SEQ = ["#6366f1", "#4ade80", "#f59e0b", "#f87171", "#38bdf8", "#a78bfa"]
 COLORS = {"blue": "#378ADD", "green": "#1D9E75", "red": "#E24B4A", "gray": "#B4B2A9", "purple": "#7F77DD"}
 
 
@@ -170,6 +168,15 @@ def load_data():
     one_done = (user_weeks_ser == 1).sum()
     power = (user_weeks_ser >= 4).sum()
 
+    # Cohort retention heatmap
+    _cohort_ret = rr_u.groupby(['cohort_week', 'week_num'])['USER_ID'].nunique().reset_index()
+    _cohort_ret.columns = ['cohort_week', 'week_num', 'active_users']
+    _cohort_ret = _cohort_ret.join(cohort_sizes, on='cohort_week')
+    _cohort_ret['retention_rate'] = _cohort_ret['active_users'] / _cohort_ret['cohort_size']
+    cohort_pivot = _cohort_ret.pivot(index='cohort_week', columns='week_num', values='retention_rate')
+    cohort_pivot.index = [str(i)[:10] for i in cohort_pivot.index]
+    cohort_pivot = cohort_pivot.iloc[:, :9]  # keep weeks 0-8
+
     # Segment retention for tab1 bar chart
     w0_seg = w0_agg.copy()
     w0_seg['is_mcp'] = w0_seg['primary_client'] == 'mcp'
@@ -286,6 +293,7 @@ def load_data():
         w1_retention=w1_retention,
         credits_cancelled=credits_cancelled,
         seg_values_dynamic=seg_values_dynamic,
+        cohort_pivot=cohort_pivot,
         power_credit_share=power_credit_share,
         avg_failed_users_per_week=avg_failed_users_per_week,
         pipeline_comparison=pipeline_comparison,
@@ -419,6 +427,32 @@ with tab1:
             <tbody>{rows_html}</tbody>
         </table>"""
         st.markdown(table_html, unsafe_allow_html=True)
+
+    st.markdown('<div class="section-header">Cohort retention heatmap</div>', unsafe_allow_html=True)
+    _cp = data['cohort_pivot']
+    _z = _cp.values.tolist()
+    _z_text = [[f"{v:.0%}" if not (v != v) else "" for v in row] for row in _z]
+    fig_hm = go.Figure(go.Heatmap(
+        z=_z,
+        x=[f"Week {i}" for i in _cp.columns],
+        y=_cp.index.tolist(),
+        text=_z_text,
+        texttemplate="%{text}",
+        textfont=dict(size=10),
+        colorscale=[[0, '#FCEBEB'], [0.3, '#f59e0b'], [0.7, '#378ADD'], [1, '#1D9E75']],
+        zmin=0, zmax=1,
+        hoverongaps=False,
+        hovertemplate='Cohort: %{y}<br>%{x}<br>Retention: %{z:.0%}<extra></extra>',
+        showscale=True,
+        colorbar=dict(tickformat='.0%', thickness=12, len=0.8),
+    ))
+    fig_hm.update_layout(
+        **PLOTLY_THEME, height=420,
+        margin=dict(l=10, r=10, t=10, b=10),
+        xaxis=dict(showgrid=False, side='top'),
+        yaxis=dict(showgrid=False, autorange='reversed'),
+    )
+    st.plotly_chart(fig_hm, use_container_width=True)
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
     w0r = data['w0_requests_ret']
@@ -608,7 +642,6 @@ with tab3:
     _bad_arrow = '&#8593;' if _recent_bad > _early_bad else '&#8595;'
     _bad_color = '#E24B4A' if _recent_bad > _early_bad else '#1D9E75'
 
-    import json as _j
 
     # Box 1: success rate + arrow (last 3 vs first 3 weeks)
     _sr_arrow = '&#8593;' if _recent_sr > _early_sr else '&#8595;'
@@ -652,7 +685,7 @@ with tab3:
     _pct_arrow = '&#8595;' if _recent_pct < _early_pct else '&#8593;'
     _pct_color = '#1D9E75' if _recent_pct < _early_pct else '#E24B4A'
     _pct_trend = data['q3_pct_bad_trend']
-    _pct_js = _j.dumps([round(v, 1) for v in _pct_trend])
+    _pct_js = json.dumps([round(v, 1) for v in _pct_trend])
     with c4:
         st.markdown(f'''<div class="kpi-card">
             <div class="kpi-value">{_recent_pct:.1f}%</div>
@@ -888,7 +921,6 @@ with tab4:
 
     st.markdown("")
 
-    import json
     component_totals = ic[infra_cols + model_cols].sum().reset_index()
     component_totals.columns = ['component', 'total']
     component_totals['ctype'] = component_totals['component'].apply(
@@ -1005,7 +1037,6 @@ with tab4:
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
-    import json as _json
     rr_hourly = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='request_count')
     rr_hourly.columns = ['hour', 'request_count']
     ic_tmp2 = ic.copy()
@@ -1041,8 +1072,8 @@ with tab4:
     weekly_merged = weekly_costs_ts.merge(weekly_req, on='week', how='left').fillna(0)
     weekly_merged = weekly_merged[weekly_merged['requests'] > 0]
 
-    weeks_js = _json.dumps([str(w.date()) for w in weekly_merged['week']])
-    requests_js = _json.dumps(weekly_merged['requests'].tolist())
+    weeks_js = json.dumps([str(w.date()) for w in weekly_merged['week']])
+    requests_js = json.dumps(weekly_merged['requests'].tolist())
 
     comp_colors_fixed = ['#534AB7','#7F77DD','#AFA9EC','#9F97E6','#8F85E0','#6A62CC','#3C3489','#CECBF6','#26215C','#4f46e5','#818cf8','#c7d2fe']
     comp_colors_var   = ['#f59e0b','#d97706','#fbbf24','#b45309']
@@ -1061,11 +1092,11 @@ with tab4:
         data_vals = weekly_merged[row['col']].round(2).tolist()
         ts_components.append({'label': row['label'], 'data': data_vals, 'color': color, 'preset': is_preset})
 
-    ts_components_js = _json.dumps(ts_components)
+    ts_components_js = json.dumps(ts_components)
     scatter_below = [{'label':r['label'],'corr':round(r['corr'],3),'total':round(r['total'],0)} for _,r in corr_df[corr_df['fixed']].iterrows()]
     scatter_above = [{'label':r['label'],'corr':round(r['corr'],3),'total':round(r['total'],0)} for _,r in corr_df[~corr_df['fixed']].iterrows()]
-    scatter_below_js = _json.dumps(scatter_below)
-    scatter_above_js = _json.dumps(scatter_above)
+    scatter_below_js = json.dumps(scatter_below)
+    scatter_above_js = json.dumps(scatter_above)
     fixed_names_str = ', '.join(fixed_components)
     var_names_str   = ', '.join(var_components)
 
@@ -1219,7 +1250,6 @@ with tab4:
 
     st.markdown('<div class="section-header">Cost Spikes - Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
-    import json as _json2
     merged_spike = ic.copy()
     merged_spike['hour_naive'] = merged_spike['hour'].dt.tz_localize(None)
     rr_h = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='requests')
@@ -1238,7 +1268,7 @@ with tab4:
     std_d  = float(daily_spike['total_cost'].std())
     thresh_d = mean_d + 2*std_d
 
-    daily_js = _json2.dumps({
+    daily_js = json.dumps({
         'labels': [str(d) for d in daily_spike['date']],
         'costs':  daily_spike['total_cost'].round(2).tolist(),
         'reqs':   daily_spike['requests'].astype(int).tolist(),
@@ -1260,7 +1290,7 @@ with tab4:
             'threshold': round(thresh_h, 2),
             'spikes':   int((sub['total_cost'] > thresh_h).sum())
         }
-    hourly_js = _json2.dumps(hourly_js_dict)
+    hourly_js = json.dumps(hourly_js_dict)
 
     html_spike = f"""
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
