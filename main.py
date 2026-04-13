@@ -942,7 +942,6 @@ with tab4:
     afterDatasetsDraw(chart) {{
       const ctx2 = chart.ctx;
       const meta = chart.getDatasetMeta(0);
-      const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
       ctx2.save();
       ctx2.font = '10px sans-serif';
       ctx2.fillStyle = '#64748b';
@@ -952,8 +951,7 @@ with tab4:
         const val = chart.data.datasets[0].data[i];
         if (!val) return;
         const pct = (val/TOTAL*100).toFixed(1) + '%';
-        const dollar = '$' + Math.round(val/1000) + 'k';
-        ctx2.fillText(dollar + '  ' + pct, bar.x + 6, bar.y);
+        ctx2.fillText(pct, bar.x + 6, bar.y);
       }});
       ctx2.restore();
     }}
@@ -969,12 +967,7 @@ with tab4:
     barChart.data.datasets[0].backgroundColor = bar.map(d=>d.color);
     barChart.options.plugins.tooltip.callbacks.label = function(ctx) {{
       const val = ctx.raw;
-      const pctOfAll = (val/TOTAL*100).toFixed(1);
-      const pctOfGroup = (val/subtotal*100).toFixed(1);
-      const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
-      if (f === 'all') return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
-      const groupName = f === 'infra' ? 'infrastructure' : 'models';
-      return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
+      return ' $' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
     }};
     barChart.update();
   }}
@@ -1004,22 +997,17 @@ with tab4:
           callbacks: {{
             label: function(ctx) {{
               const val = ctx.raw;
-              const pctOfAll = (val/TOTAL*100).toFixed(1);
-              const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
-              const pctOfGroup = (val/subtotal*100).toFixed(1);
               const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
-              if (currentFilter === 'all') return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
-              const groupName = currentFilter === 'infra' ? 'infrastructure' : 'models';
-              return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
+              return ` ${{dollar}}`;
             }}
           }}
         }}
       }},
       scales: {{
         x: {{
-          ticks: {{ color: tc, font: {{size:10}}, callback: v => "$" + Math.round(v/1000) + "k" }},
+          ticks: {{ color: tc, font: {{size:10}}, callback: v => (v/TOTAL*100).toFixed(0) + '%' }},
           grid: {{ color: gc }},
-          title: {{ display: true, text: 'Cost (USD)', color: tc, font: {{size:10}} }}
+          title: {{ display: true, text: '% of total cost', color: tc, font: {{size:10}} }}
         }},
         y: {{
           ticks: {{ color: tc, font: {{size:10}} }},
@@ -1247,6 +1235,22 @@ with tab4:
     st.components.v1.html(html_fv, height=1050)
 
     st.markdown('<div class="section-header">Cost Spikes - Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
+
+    _spike_counts = {}
+    for _m in ['2025-12','2026-01','2026-02','2026-03']:
+        _sub = merged_spike[merged_spike['month'] == _m].copy()
+        _mean_h = float(_sub['total_cost'].mean())
+        _std_h = float(_sub['total_cost'].std())
+        _thresh_h = _mean_h + 2*_std_h
+        _spike_counts[_m] = int((_sub['total_cost'] > _thresh_h).sum())
+
+    _sc1, _sc2, _sc3, _sc4 = st.columns(4)
+    for _col, (_month, _count) in zip([_sc1, _sc2, _sc3, _sc4], _spike_counts.items()):
+        _label = _month.replace('2025-','').replace('2026-','')
+        _months = {'12':'Dec 2025','01':'Jan 2026','02':'Feb 2026','03':'Mar 2026'}
+        with _col:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{_count}</div><div class="kpi-label">Hourly spikes</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{_months[_label]}</div></div>', unsafe_allow_html=True)
+    st.markdown("")
 
     merged_spike = ic.copy()
     merged_spike['hour_naive'] = merged_spike['hour'].dt.tz_localize(None)
