@@ -1112,12 +1112,13 @@ with tab4:
 </style>
 <div class="card">
   <p class="slabel">Step 1 - Observed: cost components vs research request volume over time</p>
-  <p class="sdesc">Some components stay flat regardless of traffic - others clearly track request volume. Select components to compare:</p>
+  <p class="sdesc">Select one component to compare against research request volume. Each component uses its own Y-axis scale.</p>
   <div id="toggles"></div>
   <div class="legend-row">
-    <span style="display:flex;align-items:center;gap:4px;">
+    <span id="compLegend" style="display:flex;align-items:center;gap:4px;"></span>
+    <span style="display:flex;align-items:center;gap:4px;margin-left:12px;">
       <span style="width:16px;height:2px;border-top:2px dashed #4ade80;display:inline-block;"></span>
-      Research requests (always on)
+      Research requests
     </span>
   </div>
   <div style="position:relative;width:100%;height:260px;"><canvas id="timeChart"></canvas></div>
@@ -1156,37 +1157,49 @@ with tab4:
   const components = {ts_components_js};
   const scatterBelow = {scatter_below_js};
   const scatterAbove = {scatter_above_js};
-  let active = new Set(components.filter(c=>c.preset).map(c=>c.label));
+  let selected = components.find(c=>c.preset) || components[0];
+
   function buildDatasets() {{
-    const ds = components.filter(c=>active.has(c.label)).map(c=>{{
-      return {{ label:c.label, data:c.data, borderColor:c.color, backgroundColor:'transparent',
-               borderWidth:2, pointRadius:3, yAxisID:'y' }};
-    }});
-    ds.push({{ label:'Research requests', data:requestsData, borderColor:'#4ade80',
-      backgroundColor:'rgba(74,222,128,0.06)', borderWidth:1.5, borderDash:[4,4],
-      pointRadius:2, fill:true, yAxisID:'y2' }});
-    return ds;
+    return [
+      {{ label:selected.label, data:selected.data, borderColor:selected.color,
+        backgroundColor:'transparent', borderWidth:2, pointRadius:2, yAxisID:'y' }},
+      {{ label:'Research requests', data:requestsData, borderColor:'#4ade80',
+        backgroundColor:'rgba(74,222,128,0.06)', borderWidth:1.5, borderDash:[4,4],
+        pointRadius:2, fill:true, yAxisID:'y2' }}
+    ];
   }}
+
+  function updateLegend() {{
+    const leg = document.getElementById('compLegend');
+    leg.innerHTML = `<span style="width:16px;height:2px;background:${{selected.color}};display:inline-block;border-radius:2px;"></span> ${{selected.label}}`;
+  }}
+
   function buildToggles() {{
     const cont = document.getElementById('toggles');
     cont.innerHTML = '';
     components.forEach(c=>{{
-      const on = active.has(c.label);
+      const on = c.label === selected.label;
       const btn = document.createElement('button');
       btn.className = 'tbtn';
       btn.textContent = c.label;
-      btn.style.border = `1px solid ${{c.color}}`;btn.style.fontWeight='500';
+      btn.style.border = `1px solid ${{c.color}}`;
+      btn.style.fontWeight = '500';
       btn.style.background = on ? c.color : 'transparent';
       btn.style.color = on ? '#ffffff' : c.color;
       btn.onclick = () => {{
-        if(active.has(c.label)) active.delete(c.label); else active.add(c.label);
+        selected = c;
         chart.data.datasets = buildDatasets();
+        chart.options.scales.y.ticks.color = c.color;
+        chart.options.scales.y.title.text = c.label + ' ($/hr)';
+        chart.options.scales.y.title.color = c.color;
         chart.update();
         buildToggles();
+        updateLegend();
       }};
       cont.appendChild(btn);
     }});
   }}
+
   const gc='rgba(0,0,0,0.07)', tc='#0f172a';
   const chart = new Chart(document.getElementById('timeChart'), {{
     type:'line',
@@ -1195,13 +1208,18 @@ with tab4:
       responsive:true, maintainAspectRatio:false,
       plugins:{{ legend:{{ display:false }} }},
       scales:{{
-        x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }}, title:{{ display:true, text:'Week', color:tc, font:{{size:10}} }} }},
-        y:{{ ticks:{{ color:tc, font:{{size:10}}, callback:v=>'$'+v.toFixed(0) }}, grid:{{ color:gc }}, title:{{ display:true, text:'Avg hourly cost (USD)', color:tc, font:{{size:10}} }} }},
-        y2:{{ position:'right', ticks:{{ color:'#4ade80', font:{{size:10}} }}, grid:{{ display:false }}, title:{{ display:true, text:'Research requests per hour', color:'#4ade80', font:{{size:10}} }} }}
+        x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }},
+             title:{{ display:true, text:'Week', color:tc, font:{{size:10}} }} }},
+        y:{{ ticks:{{ color:selected.color, font:{{size:10}}, callback:v=>'$'+v.toFixed(0) }},
+             grid:{{ color:gc }},
+             title:{{ display:true, text:selected.label+' ($/hr)', color:selected.color, font:{{size:10}} }} }},
+        y2:{{ position:'right', ticks:{{ color:'#4ade80', font:{{size:10}} }}, grid:{{ display:false }},
+              title:{{ display:true, text:'Requests/hr', color:'#4ade80', font:{{size:10}} }} }}
       }}
     }}
   }});
   buildToggles();
+  updateLegend();
   const toPoint = (d,i) => ({{ x:d.corr, y:d.total, r:Math.max(5,Math.sqrt(d.total/800)), label:d.label }});
   new Chart(document.getElementById('scatterChart'), {{
     type:'bubble',
