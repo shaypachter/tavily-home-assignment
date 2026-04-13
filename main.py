@@ -1065,9 +1065,6 @@ with tab4:
     weekly_merged = weekly_costs_ts.merge(weekly_req, on='week', how='left').fillna(0)
     weekly_merged = weekly_merged[weekly_merged['requests'] > 0]
 
-    weeks_js = json.dumps([str(w.date()) for w in weekly_merged['week']])
-    requests_js = json.dumps(weekly_merged['requests'].tolist())
-
     comp_colors_fixed = ['#534AB7','#7F77DD','#AFA9EC','#9F97E6','#8F85E0','#6A62CC','#3C3489','#CECBF6','#26215C','#4f46e5','#818cf8','#c7d2fe']
     comp_colors_var   = ['#f59e0b','#d97706','#fbbf24','#b45309']
 
@@ -1110,21 +1107,9 @@ with tab4:
   .bar-bg {{ margin-top:8px; height:4px; background:#e2e8f0; border-radius:2px; }}
   .comp-names {{ margin-top:10px; font-size:11px; color:#0f172a; line-height:1.7; }}
 </style>
+
 <div class="card">
-  <p class="slabel">Step 1 - Observed: cost components vs research request volume over time</p>
-  <p class="sdesc">Select one component. All lines are normalized to % of their own average (100 = typical week). Fixed costs stay flat near 100; variable costs move with demand.</p>
-  <div id="toggles"></div>
-  <div class="legend-row">
-    <span id="compLegend" style="display:flex;align-items:center;gap:4px;"></span>
-    <span style="display:flex;align-items:center;gap:6px;margin-left:16px;">
-      <span style="width:16px;height:2px;border-top:2px dashed #4ade80;display:inline-block;"></span>
-      <span style="font-size:11px;color:#64748b;">Research requests (normalized)</span>
-    </span>
-  </div>
-  <div style="position:relative;width:100%;height:260px;"><canvas id="timeChart"></canvas></div>
-</div>
-<div class="card">
-  <p class="slabel">Step 2 - Validated: correlation with research request volume across all components</p>
+  <p class="slabel">Correlation with research request volume across all components</p>
   <p class="sdesc">A threshold of 0.3 was chosen based on a natural gap in the data - all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
   <div class="legend-row">
     <span style="display:flex;align-items:center;gap:4px;"><span class="dot" style="background:#534AB7;"></span>Below threshold</span>
@@ -1133,7 +1118,7 @@ with tab4:
   <div style="position:relative;width:100%;height:300px;"><canvas id="scatterChart"></canvas></div>
 </div>
 <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:1rem;">
-  <p class="slabel">Step 3 - Conclusion: fixed vs variable split</p>
+  <p class="slabel">Fixed vs variable split</p>
   <div class="concl-grid">
     <div class="concl-card">
       <div style="font-size:12px;color:#0f172a;margin-bottom:4px;">Fixed costs</div>
@@ -1145,89 +1130,16 @@ with tab4:
     <div class="concl-card">
       <div style="font-size:12px;color:#0f172a;margin-bottom:4px;">Variable costs</div>
       <div style="font-size:22px;font-weight:500;color:#0f172a;">${var_total:,.0f} <span style="font-size:14px;color:#64748b;">{var_pct:.1f}%</span></div>
-      <div style="font-size:11px;color:#0f172a;margin-top:4px;">Scales with research request volume</div>
+      <div style="font-size:11px;color:#0f172a;margin-top:4px;">Correlates with request volume — though absolute movement is small (CV 6–11%)</div>
       <div class="bar-bg"><div style="width:{var_pct:.1f}%;height:4px;background:#f59e0b;border-radius:2px;"></div></div>
       <div class="comp-names">{var_names_str}</div>
     </div>
   </div>
 </div>
 <script>
-  const weeks = {weeks_js};
-  const requestsData = {requests_js};
-  const components = {ts_components_js};
   const scatterBelow = {scatter_below_js};
   const scatterAbove = {scatter_above_js};
-  let selected = components.find(c=>c.preset) || components[0];
-
-  function normalize(data) {{
-    const vals = data.filter(v => v != null && v !== 0);
-    if (!vals.length) return data.map(() => 100);
-    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-    return data.map(v => v == null ? null : Math.round((v / mean) * 100));
-  }}
-
-  const requestsNorm = normalize(requestsData);
-
-  function buildDatasets() {{
-    return [
-      {{ label:selected.label, data:normalize(selected.data), borderColor:selected.color,
-        backgroundColor:'transparent', borderWidth:2, pointRadius:2, yAxisID:'y' }},
-      {{ label:'Research requests', data:requestsNorm, borderColor:'#4ade80',
-        backgroundColor:'rgba(74,222,128,0.06)', borderWidth:1.5, borderDash:[4,4],
-        pointRadius:2, fill:true, yAxisID:'y' }}
-    ];
-  }}
-
-  function updateLegend() {{
-    const leg = document.getElementById('compLegend');
-    leg.innerHTML = `<span style="width:16px;height:2px;background:${{selected.color}};display:inline-block;border-radius:2px;"></span> ${{selected.label}}`;
-  }}
-
-  function buildToggles() {{
-    const cont = document.getElementById('toggles');
-    cont.innerHTML = '';
-    components.forEach(c=>{{
-      const on = c.label === selected.label;
-      const btn = document.createElement('button');
-      btn.className = 'tbtn';
-      btn.textContent = c.label;
-      btn.style.border = `1px solid ${{c.color}}`;
-      btn.style.fontWeight = '500';
-      btn.style.background = on ? c.color : 'transparent';
-      btn.style.color = on ? '#ffffff' : c.color;
-      btn.onclick = () => {{
-        selected = c;
-        chart.data.datasets = buildDatasets();
-        chart.options.scales.y.ticks.color = c.color;
-        chart.options.scales.y.title.text = c.label + ' ($/hr)';
-        chart.options.scales.y.title.color = c.color;
-        chart.update();
-        buildToggles();
-        updateLegend();
-      }};
-      cont.appendChild(btn);
-    }});
-  }}
-
   const gc='rgba(0,0,0,0.07)', tc='#0f172a';
-  const chart = new Chart(document.getElementById('timeChart'), {{
-    type:'line',
-    data:{{ labels:weeks, datasets:buildDatasets() }},
-    options:{{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{{ legend:{{ display:false }} }},
-      scales:{{
-        x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }},
-             title:{{ display:true, text:'Week', color:tc, font:{{size:10}} }} }},
-        y:{{ ticks:{{ color:tc, font:{{size:10}}, callback:v=>v+'%' }},
-             grid:{{ color:gc }},
-             title:{{ display:true, text:'Index (100 = component average)', color:tc, font:{{size:10}} }},
-             min:0 }}
-      }}
-    }}
-  }});
-  chart.update();
-  buildToggles();
   updateLegend();
   const toPoint = (d,i) => ({{ x:d.corr, y:d.total, r:Math.max(5,Math.sqrt(d.total/800)), label:d.label }});
   new Chart(document.getElementById('scatterChart'), {{
