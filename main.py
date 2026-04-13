@@ -1264,18 +1264,20 @@ with tab4:
   const HOURLY = {hourly_js};
   const SPIKE_COUNTS = {spike_counts_js};
   const tc='#0f172a', gc='rgba(0,0,0,0.07)';
-  function makeThresholdLine(threshold) {{
-    return function(chart) {{
+  let currentThreshold = null;
+  const thresholdPlugin = {{
+    id: 'thresholdLine',
+    afterDraw(chart) {{
+      if (!currentThreshold) return;
       const ctx2=chart.ctx, xs=chart.scales.x, ys=chart.scales.y;
-      const yPx=ys.getPixelForValue(threshold);
+      const yPx=ys.getPixelForValue(currentThreshold);
       if(yPx<ys.top||yPx>ys.bottom) return;
       ctx2.save();
-      ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
+      ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1.5;
       ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
-      ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
       ctx2.restore();
-    }};
-  }}
+    }}
+  }};
   function getVdata(view) {{
     if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (>=50 req/day)' }};
     const h=HOURLY[view];
@@ -1306,15 +1308,17 @@ with tab4:
     const vdata=getVdata(view);
     chart.data.labels=vdata.labels;
     chart.data.datasets=buildDs(vdata);
-    chart.options.scales.y.afterDraw=makeThresholdLine(vdata.threshold);
+    currentThreshold = vdata.threshold;
     chart.options.scales.y.title.text='Total cost ('+vdata.costUnit+')';
     chart.options.scales.y2.title.text='Requests ('+vdata.reqUnit+')';
     chart.update(); updateStats(vdata);
 
   }}
   const initData=getVdata('daily');
+  currentThreshold = initData.threshold;
   const chart=new Chart(document.getElementById('spikeChart'),{{
     type:'line',
+    plugins:[thresholdPlugin],
     data:{{labels:initData.labels, datasets:buildDs(initData)}},
     options:{{
       responsive:true, maintainAspectRatio:false,
@@ -1323,7 +1327,7 @@ with tab4:
         x:{{ticks:{{color:tc,font:{{size:9}},maxRotation:45,autoSkip:true,maxTicksLimit:20}},grid:{{color:gc}}}},
         y:{{ticks:{{color:tc,font:{{size:10}},callback:v=>'$'+Math.round(v)}},grid:{{color:gc}},
            title:{{display:true,text:'Total cost ($/day)',color:tc,font:{{size:10}}}},
-           afterDraw:makeThresholdLine(initData.threshold)}},
+           }},
         y2:{{position:'right',ticks:{{color:'#4ade80',font:{{size:10}}}},grid:{{display:false}},
              title:{{display:true,text:'Requests (req/day)',color:'#4ade80',font:{{size:10}}}}}}
       }}
