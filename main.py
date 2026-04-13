@@ -921,7 +921,7 @@ with tab4:
   <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
   <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
 </div>
-<div style="position:relative;width:100%;height:440px;">
+<div style="position:relative;width:100%;height:670px;">
   <canvas id="barChart"></canvas>
 </div>
 <script>
@@ -1019,7 +1019,7 @@ with tab4:
   }});
 </script>
 """
-    st.components.v1.html(html_code, height=510)
+    st.components.v1.html(html_code, height=800)
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
