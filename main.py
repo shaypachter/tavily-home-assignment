@@ -1254,7 +1254,7 @@ with tab4:
 </div>
 <div class="legend">
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;background:#534AB7;display:inline-block;"></span>Total cost</span>
-  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2sigma)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;Q3 + 1.5×IQR)</span>
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
 </div>
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
