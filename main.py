@@ -1285,13 +1285,8 @@ with tab4:
     return [
       {{ label:'Total cost', data:vdata.costs, yAxisID:'y',
         borderColor:'#534AB7', backgroundColor:'rgba(83,74,183,0.08)',
-        borderWidth:1.5, fill:true, tension:0.3, pointRadius:0, pointHoverRadius:4
-      }},
-      {{ label:'Cost spike (>Q3 + 1.5xIQR)', 
-        data:vdata.costs.map(v=>v>vdata.threshold?v:null), yAxisID:'y',
-        borderColor:'#f87171', backgroundColor:'rgba(248,113,113,0.15)',
-        borderWidth:2.5, fill:true, tension:0.3, pointRadius:4, pointBackgroundColor:'#f87171',
-        spanGaps:false
+        borderWidth:1.5, fill:true, tension:0.3, pointRadius:0, pointHoverRadius:4,
+        segment:{{ borderColor:ctx=>vdata.costs[ctx.p1DataIndex]>vdata.threshold?'#f87171':'#534AB7' }}
       }},
       {{ label:'Research requests', data:vdata.reqs, yAxisID:'y2',
         borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.06)',
@@ -1352,21 +1347,18 @@ with tab4:
     eff_agg['is_outlier'] = eff_agg['requests'] < 500
 
     eff_agg = eff_agg.reset_index(drop=True)
-    # Label every other point so they roughly match x-axis ticks
-    _step = max(1, len(eff_agg) // 9)
-    _label_idx = list(range(0, len(eff_agg), _step))
-    if len(eff_agg)-1 not in _label_idx:
-        _label_idx.append(len(eff_agg)-1)
-    _annots = []
-    for _i in _label_idx:
-        _v = eff_agg['cost_per_req'].iloc[_i]
-        _txt = f"${_v:.0f}" if _v >= 10 else f"${_v:.2f}"
-        _annots.append(dict(
-            x=eff_agg['week'].iloc[_i], y=_v,
-            text=_txt, showarrow=False,
-            font=dict(color='#b45309', size=10),
-            yshift=12, xshift=0,
-        ))
+    _annots = [
+        dict(x=eff_agg['week'].iloc[0], y=eff_agg['cost_per_req'].iloc[0],
+             text=f"${eff_agg['cost_per_req'].iloc[0]:.0f}/req",
+             showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
+             font=dict(color='#f59e0b', size=11), ay=-30, ax=0,
+             bgcolor='white', bordercolor='#f59e0b', borderwidth=1),
+        dict(x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
+             text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
+             showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
+             font=dict(color='#f59e0b', size=11), ay=-30, ax=0,
+             bgcolor='white', bordercolor='#f59e0b', borderwidth=1),
+    ]
     fig_eff = go.Figure()
     fig_eff.add_trace(go.Scatter(
         x=eff_agg['week'], y=eff_agg['cost_per_req'],
