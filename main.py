@@ -10,7 +10,6 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="Tavily Research API — Analytics Dashboard",
-    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -333,10 +332,10 @@ st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset · Com
 st.markdown("---")
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "Retention",
-    "Profitability",
-    "Technical Health",
-    "Infrastructure Costs",
+    "📈  Retention",
+    "💰  Profitability",
+    "🩺  Technical Health",
+    "🏗️  Infrastructure Costs",
 ])
 
 # ═══════════════════════════════════════════════════════════
@@ -371,7 +370,7 @@ with tab1:
         _w1 = float(_w1_val[0]) if len(_w1_val) > 0 else 0.22
         fig.add_annotation(
             x=1, y=_w1,
-            text=f"<b>{_w1:.0%} survive week 1</b>",
+            text=f"<b>{_w1:.0%} came back after first session</b>",
             showarrow=True, arrowhead=2, arrowcolor=COLORS['red'],
             font=dict(color=COLORS['red'], size=11),
             ax=40, ay=-30, bgcolor='white', bordercolor=COLORS['red'], borderwidth=1,
@@ -720,29 +719,11 @@ with tab3:
 
     with col_right:
         st.markdown('<div class="section-header">Mini vs pro - latency profile</div>', unsafe_allow_html=True)
-        ml = data['model_latency']
-        ml = ml[ml['MODEL'].isin(['mini', 'pro'])]
-        fig = go.Figure()
-        for model, color in [('mini', COLORS['blue']), ('pro', COLORS['purple'])]:
-            row = ml[ml['MODEL'] == model].iloc[0]
-            fig.add_trace(go.Bar(
-                name=model, x=['p50', 'p95'], y=[row['p50'], row['p95']], marker_color=color,
-                text=[f"{row['p50']:.0f}s", f"{row['p95']:.0f}s"], textposition='outside',
-                hovertemplate=f"{model} %{{x}}: %{{y:.0f}}s<extra></extra>",
-            ))
-        fig.update_layout(**PLOTLY_THEME, height=240, barmode='group',
-                          margin=dict(l=10, r=10, t=30, b=10),
-                          yaxis=dict(title='Response time (seconds)', gridcolor='#f1f5f9', range=[0, 620]),
-                          xaxis=dict(showgrid=False, title='Latency percentile'),
-                          legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
-        st.plotly_chart(fig, use_container_width=True)
-
         ms = data['model_stats']
         mini = ms['mini']
         pro  = ms['pro']
         p50_mult  = pro['p50'] / mini['p50']
         p95_mult  = pro['p95'] / mini['p95']
-        llm_mult  = pro['llm'] / mini['llm']
         sr_diff   = (pro['sr'] - mini['sr']) * 100
 
         def badge(txt, good):
@@ -767,11 +748,7 @@ with tab3:
             f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["p95"]:.0f}s</td>'
             f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["p95"]:.0f}s</td>'
             f'<td style="padding:8px;text-align:center;">{badge(f"{p95_mult:.1f}x slower", False)}</td></tr>'
-            f'<tr>'
-            f'<td style="padding:8px;font-size:12px;color:#64748b;">Avg LLM calls</td>'
-            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["llm"]:.0f}</td>'
-            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["llm"]:.0f}</td>'
-            f'<td style="padding:8px;text-align:center;">{badge(f"{llm_mult:.1f}x more", True)}</td></tr>'
+            
         )
         table_html = (
             '<table style="width:100%;border-collapse:collapse;margin-top:8px;">'
