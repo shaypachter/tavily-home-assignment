@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="Tavily Research API — Analytics Dashboard",
-    page_icon=" ",
+    page_icon="https://tavily.com/favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -914,11 +914,14 @@ with tab4:
   .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; }}
   .tbtn.active {{ background:#1e293b; color:#ffffff; }}
 </style>
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
-  <span style="font-size:11px;color:#0f172a;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
-  <button class="tbtn active" id="btn-all" onclick="setFilter('all')">All</button>
-  <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
-  <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
+<div style="margin-bottom:0.5rem;">
+  <div style="font-size:14px;font-weight:500;color:#0f172a;margin-bottom:10px;">Cost share by component</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
+    <button class="tbtn active" id="btn-all" onclick="setFilter('all')">All</button>
+    <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
+    <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
+  </div>
 </div>
 <div style="position:relative;width:100%;height:400px;">
   <canvas id="barChart"></canvas>
@@ -981,13 +984,21 @@ with tab4:
       indexAxis: "y",
       plugins: {{
         legend: {{ display: false }},
+        datalabels: {{ display: false }},
         tooltip: {{
           callbacks: {{
             label: function(ctx) {{
               const val = ctx.raw;
               const pctOfAll = (val/TOTAL*100).toFixed(1);
+              const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
+              const pctOfGroup = (val/subtotal*100).toFixed(1);
               const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
-              return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+              if (currentFilter === 'all') {{
+                return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+              }} else {{
+                const groupName = currentFilter === 'infra' ? 'infrastructure' : 'models';
+                return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
+              }}
             }}
           }}
         }}
@@ -1003,8 +1014,29 @@ with tab4:
           grid: {{ display: false }},
           title: {{ display: true, text: 'Component', color: tc, font: {{size:10}} }}
         }}
+      }},
+      animation: {{
+        onComplete: function() {{
+          const chart = this;
+          const ctx2 = chart.ctx;
+          const dataset = chart.data.datasets[0];
+          const meta = chart.getDatasetMeta(0);
+          const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
+          ctx2.save();
+          ctx2.font = '10px sans-serif';
+          ctx2.fillStyle = '#64748b';
+          ctx2.textAlign = 'left';
+          ctx2.textBaseline = 'middle';
+          meta.data.forEach(function(bar, i) {{
+            const val = dataset.data[i];
+            const pct = (val/TOTAL*100).toFixed(1) + '%';
+            const x = bar.x + 6;
+            const y = bar.y;
+            ctx2.fillText(pct, x, y);
+          }});
+          ctx2.restore();
+        }}
       }}
-    }}
   }});
 </script>
 """
