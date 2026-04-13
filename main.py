@@ -982,9 +982,9 @@ with tab4:
       responsive: true,
       maintainAspectRatio: false,
       indexAxis: "y",
+      layout: {{ padding: {{ right: 60 }} }},
       plugins: {{
         legend: {{ display: false }},
-        datalabels: {{ display: false }},
         tooltip: {{
           callbacks: {{
             label: function(ctx) {{
@@ -1013,28 +1013,6 @@ with tab4:
           ticks: {{ color: tc, font: {{size:10}} }},
           grid: {{ display: false }},
           title: {{ display: true, text: 'Component', color: tc, font: {{size:10}} }}
-        }}
-      }},
-      animation: {{
-        onComplete: function() {{
-          const chart = this;
-          const ctx2 = chart.ctx;
-          const dataset = chart.data.datasets[0];
-          const meta = chart.getDatasetMeta(0);
-          const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
-          ctx2.save();
-          ctx2.font = '10px sans-serif';
-          ctx2.fillStyle = '#64748b';
-          ctx2.textAlign = 'left';
-          ctx2.textBaseline = 'middle';
-          meta.data.forEach(function(bar, i) {{
-            const val = dataset.data[i];
-            const pct = (val/TOTAL*100).toFixed(1) + '%';
-            const x = bar.x + 6;
-            const y = bar.y;
-            ctx2.fillText(pct, x, y);
-          }});
-          ctx2.restore();
         }}
       }}
   }});
