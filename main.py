@@ -1015,6 +1015,7 @@ with tab4:
           title: {{ display: true, text: 'Component', color: tc, font: {{size:10}} }}
         }}
       }}
+    }}
   }});
 </script>
 """
