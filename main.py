@@ -168,15 +168,6 @@ def load_data():
     one_done = (user_weeks_ser == 1).sum()
     power = (user_weeks_ser >= 4).sum()
 
-    # Cohort retention heatmap
-    _cohort_ret = rr_u.groupby(['cohort_week', 'week_num'])['USER_ID'].nunique().reset_index()
-    _cohort_ret.columns = ['cohort_week', 'week_num', 'active_users']
-    _cohort_ret = _cohort_ret.join(cohort_sizes, on='cohort_week')
-    _cohort_ret['retention_rate'] = _cohort_ret['active_users'] / _cohort_ret['cohort_size']
-    cohort_pivot = _cohort_ret.pivot(index='cohort_week', columns='week_num', values='retention_rate')
-    cohort_pivot.index = [str(i)[:10] for i in cohort_pivot.index]
-    cohort_pivot = cohort_pivot.iloc[:, :9]  # keep weeks 0-8
-
     # Segment retention for tab1 bar chart
     w0_seg = w0_agg.copy()
     w0_seg['is_mcp'] = w0_seg['primary_client'] == 'mcp'
@@ -293,7 +284,6 @@ def load_data():
         w1_retention=w1_retention,
         credits_cancelled=credits_cancelled,
         seg_values_dynamic=seg_values_dynamic,
-        cohort_pivot=cohort_pivot,
         power_credit_share=power_credit_share,
         avg_failed_users_per_week=avg_failed_users_per_week,
         pipeline_comparison=pipeline_comparison,
@@ -427,32 +417,6 @@ with tab1:
             <tbody>{rows_html}</tbody>
         </table>"""
         st.markdown(table_html, unsafe_allow_html=True)
-
-    st.markdown('<div class="section-header">Cohort retention heatmap</div>', unsafe_allow_html=True)
-    _cp = data['cohort_pivot']
-    _z = _cp.values.tolist()
-    _z_text = [[f"{v:.0%}" if not (v != v) else "" for v in row] for row in _z]
-    fig_hm = go.Figure(go.Heatmap(
-        z=_z,
-        x=[f"Week {i}" for i in _cp.columns],
-        y=_cp.index.tolist(),
-        text=_z_text,
-        texttemplate="%{text}",
-        textfont=dict(size=10),
-        colorscale=[[0, '#FCEBEB'], [0.3, '#f59e0b'], [0.7, '#378ADD'], [1, '#1D9E75']],
-        zmin=0, zmax=1,
-        hoverongaps=False,
-        hovertemplate='Cohort: %{y}<br>%{x}<br>Retention: %{z:.0%}<extra></extra>',
-        showscale=True,
-        colorbar=dict(tickformat='.0%', thickness=12, len=0.8),
-    ))
-    fig_hm.update_layout(
-        **PLOTLY_THEME, height=420,
-        margin=dict(l=10, r=10, t=10, b=10),
-        xaxis=dict(showgrid=False, side='top'),
-        yaxis=dict(showgrid=False, autorange='reversed'),
-    )
-    st.plotly_chart(fig_hm, use_container_width=True)
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
     w0r = data['w0_requests_ret']
