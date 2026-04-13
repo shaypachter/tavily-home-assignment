@@ -1195,9 +1195,9 @@ with tab4:
         requests=('requests','sum')
     ).reset_index()
     daily_spike = daily_spike[daily_spike['requests'] >= 50]
-    mean_d = float(daily_spike['total_cost'].mean())
-    std_d  = float(daily_spike['total_cost'].std())
-    thresh_d = mean_d + 2*std_d
+    _q1d = float(daily_spike['total_cost'].quantile(0.25))
+    _q3d = float(daily_spike['total_cost'].quantile(0.75))
+    thresh_d = _q3d + 1.5 * (_q3d - _q1d)
 
     daily_js = json.dumps({
         'labels': [str(d) for d in daily_spike['date']],
@@ -1211,9 +1211,9 @@ with tab4:
     for m in ['2025-12','2026-01','2026-02','2026-03']:
         sub = merged_spike[merged_spike['month'] == m].copy()
         sub2 = sub[sub.index % 2 == 0]
-        mean_h = float(sub['total_cost'].mean())
-        std_h  = float(sub['total_cost'].std())
-        thresh_h = mean_h + 2*std_h
+        _q1h = float(sub['total_cost'].quantile(0.25))
+        _q3h = float(sub['total_cost'].quantile(0.75))
+        thresh_h = _q3h + 1.5 * (_q3h - _q1h)
         hourly_js_dict[m] = {
             'labels':   sub2['hour_naive'].dt.strftime('%d %H:00').tolist(),
             'costs':    sub2['total_cost'].round(2).tolist(),
@@ -1226,9 +1226,9 @@ with tab4:
     _spike_counts = {}
     for _m in ['2025-12','2026-01','2026-02','2026-03']:
         _sub = merged_spike[merged_spike['month'] == _m].copy()
-        _mean_h = float(_sub['total_cost'].mean())
-        _std_h = float(_sub['total_cost'].std())
-        _thresh_h = _mean_h + 2*_std_h
+        _q1 = float(_sub['total_cost'].quantile(0.25))
+        _q3 = float(_sub['total_cost'].quantile(0.75))
+        _thresh_h = _q3 + 1.5 * (_q3 - _q1)
         _spike_counts[_m] = int((_sub['total_cost'] > _thresh_h).sum())
     spike_counts_js = json.dumps(_spike_counts)
 
@@ -1276,7 +1276,7 @@ with tab4:
       ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
       ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
       ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
-      ctx2.fillText('mean+2sigma', xs.right-70, yPx-4); ctx2.restore();
+      ctx2.fillText('Q3 + 1.5×IQR', xs.right-70, yPx-4); ctx2.restore();
     }};
   }}
   function getVdata(view) {{
