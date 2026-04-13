@@ -1257,10 +1257,7 @@ with tab4:
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;Q3 + 1.5×IQR)</span>
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
 </div>
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-  <div class="stats" id="statsRow" style="flex:1;"></div>
-  <span id="spikeBadge" style="display:none;background:#FCEBEB;color:#A32D2D;font-size:11px;font-weight:500;padding:3px 10px;border-radius:12px;white-space:nowrap;"></span>
-</div>
+<div class="stats" id="statsRow"></div>
 <div style="position:relative;width:100%;height:300px;"><canvas id="spikeChart"></canvas></div>
 <script>
   const DAILY = {daily_js};
@@ -1313,14 +1310,7 @@ with tab4:
     chart.options.scales.y.title.text='Total cost ('+vdata.costUnit+')';
     chart.options.scales.y2.title.text='Requests ('+vdata.reqUnit+')';
     chart.update(); updateStats(vdata);
-    const badge = document.getElementById('spikeBadge');
-    if (view !== 'daily') {{
-      const cnt = SPIKE_COUNTS[view] || 0;
-      badge.textContent = cnt + ' spike' + (cnt !== 1 ? 's' : '') + ' this month';
-      badge.style.display = 'inline-block';
-    }} else {{
-      badge.style.display = 'none';
-    }}
+
   }}
   const initData=getVdata('daily');
   const chart=new Chart(document.getElementById('spikeChart'),{{
@@ -1356,27 +1346,41 @@ with tab4:
     eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
     eff_agg['is_outlier'] = eff_agg['requests'] < 500
 
+    eff_agg = eff_agg.reset_index(drop=True)
+    _annots = [
+        dict(x=eff_agg['week'].iloc[0], y=eff_agg['cost_per_req'].iloc[0],
+             text=f"${eff_agg['cost_per_req'].iloc[0]:.0f}/req",
+             showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
+             font=dict(color='#f59e0b', size=11), ay=-30, ax=0,
+             bgcolor='white', bordercolor='#f59e0b', borderwidth=1),
+        dict(x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
+             text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
+             showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
+             font=dict(color='#f59e0b', size=11), ay=-30, ax=0,
+             bgcolor='white', bordercolor='#f59e0b', borderwidth=1),
+    ]
     fig_eff = go.Figure()
     fig_eff.add_trace(go.Scatter(
         x=eff_agg['week'], y=eff_agg['cost_per_req'],
         mode='lines+markers',
         line=dict(color='#f59e0b', width=2.5),
         marker=dict(size=6, color='#f59e0b'),
-        fill='tozeroy',
-        fillcolor='rgba(245,158,11,0.08)',
-        hovertemplate='Week of %{x|%b %d}<br>Cost/request: $%{y:.2f}<extra></extra>'
+        fill='tozeroy', fillcolor='rgba(245,158,11,0.08)',
+        customdata=list(zip(eff_agg['requests'].astype(int), eff_agg['total_cost'].round(0))),
+        hovertemplate=(
+            'Week of %{x|%b %d}<br>'
+            'Cost/request: $%{y:.2f}<br>'
+            'Requests: %{customdata[0]:,}<br>'
+            'Total cost: $%{customdata[1]:,.0f}<extra></extra>'
+        )
     ))
     fig_eff.update_layout(
-        **PLOTLY_THEME, height=280,
+        **PLOTLY_THEME, height=300,
         yaxis_title="Cost per research request ($)",
         xaxis_title="Week",
         yaxis_type="log",
-        annotations=[dict(
-            x=eff_agg['week'].iloc[-1], y=eff_agg['cost_per_req'].iloc[-1],
-            text=f"${eff_agg['cost_per_req'].iloc[-1]:.2f}/req",
-            showarrow=True, arrowhead=2, arrowcolor='#f59e0b',
-            font=dict(color='#f59e0b', size=11)
-        )]
+        annotations=_annots,
+        margin=dict(l=10, r=10, t=30, b=10),
     )
     st.plotly_chart(fig_eff, use_container_width=True)
 
