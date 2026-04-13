@@ -921,7 +921,7 @@ with tab4:
   <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
   <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
 </div>
-<div style="position:relative;width:100%;height:670px;">
+<div id="chartWrap" style="position:relative;width:100%;">
   <canvas id="barChart"></canvas>
 </div>
 <script>
@@ -962,6 +962,7 @@ with tab4:
     ["all","infra","models"].forEach(x=>document.getElementById("btn-"+x).classList.toggle("active",x===f));
     const bar = getData(f);
     const subtotal = bar.reduce((s,d)=>s+d.value,0);
+    resizeChart(bar.length);
     barChart.data.labels = bar.map(d=>d.label);
     barChart.data.datasets[0].data = bar.map(d=>d.value);
     barChart.data.datasets[0].backgroundColor = bar.map(d=>d.color);
@@ -972,7 +973,13 @@ with tab4:
     barChart.update();
   }}
 
+  function resizeChart(n) {{
+    const h = Math.max(200, n * 32 + 80);
+    document.getElementById('chartWrap').style.height = h + 'px';
+  }}
+
   const ib = getData('all');
+  resizeChart(ib.length);
   const gc="rgba(0,0,0,0.07)", tc="#0f172a";
 
   const barChart = new Chart(document.getElementById("barChart"), {{
@@ -1019,7 +1026,7 @@ with tab4:
   }});
 </script>
 """
-    st.components.v1.html(html_code, height=800)
+    st.components.v1.html(html_code, height=700)
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
