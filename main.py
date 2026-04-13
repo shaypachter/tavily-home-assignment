@@ -438,23 +438,6 @@ with tab1:
                       xaxis=dict(showgrid=False, title='Segment'))
     st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Findings & recommendation"):
-        st.markdown("""
-**Findings**
-
-74% of users are one-time users. Average week-1 retention is 22%, and only 4.8% qualify as power users (active 4+ weeks) — yet that 4.8% generates 79% of all credits charged.
-
-The strongest predictors of retention from first-week behavior:
-- Plan type — enterprise retains 100%, bootstrap 76%, growth 65%, project 55%, but researcher (96% of all users) retains only 25%. The product is largely being tested by low-tier users who don't convert.
-- PayGo enabled = 2x retention — 52% vs 24% without PayGo. These users have skin in the game and are more likely building real workflows.
-- MCP integration = 1.7x retention — MCP users retain at 32% vs 19%. MCP users have already embedded the API into a tool, meaning they're builders, not explorers.
-- More requests in week 0 = higher retention. Going from 1 request (21%) to 6-10 requests (35%) in the first week meaningfully lifts the chance of coming back.
-- Streaming users churn more — 17% vs 28% for non-streaming. Streaming looks like a quick-test behavior, not a production integration pattern.
-
-**Recommendation**
-
-Users who integrate properly (MCP, PayGo, higher plans) retain well. The problem is most users never reach that point. Focus onboarding on driving users toward a real integration — push toward MCP setup, identify researcher-plan users with high week-0 volume as upgrade candidates. Those users are on the wrong plan.
-        """)
 
 # ═══════════════════════════════════════════════════════════
 # TAB 2 — PROFITABILITY
@@ -570,22 +553,6 @@ with tab2:
                           yaxis=dict(showgrid=False, title='Plan'))
         st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Findings & recommendation"):
-        st.markdown("""
-**Findings**
-
-The hypothesis is disproved, but revealed a different and bigger issue.
-
-Failed and cancelled requests are a non-issue financially. Despite averaging 78-134 seconds of runtime and consuming LLM and search calls, they account for only 0.13% of total system cost - and the billing system even partially recovers some of that (3,081 credits charged on cancelled jobs).
-
-The leak is hiding in successful requests, which I didn't expect to see as non-paid. Almost 99% of uncharged requests have status = success. 69% of all successful requests - where the system fully completed the job and delivered value - were charged 0 credits. That's 76,818 completed requests representing 72% of total system cost delivered for free.
-
-The growth plan is the only one that charges credits (94% of requests). Other plans receive the product largely for free.
-
-**Recommendation**
-
-Audit the billing trigger logic per plan. Identify whether uncharged requests reflect intentional free-tier allowances or a billing bug. Finding the reasons for cancellations (long running times, lack of credits) or failures (technical issues) might also help improve profitability.
-        """)
 
 # ═══════════════════════════════════════════════════════════
 # TAB 3 — TECHNICAL HEALTH
@@ -790,22 +757,6 @@ with tab3:
     )
     st.plotly_chart(fig_pc, use_container_width=True)
 
-    with st.expander("Findings & recommendation"):
-        st.markdown("""
-**Findings**
-
-The hypothesis is disproved - reliability actually improved over time. Success rates started volatile (84-95% in Dec/Jan) and stabilized at 97-98% by March. Yet - keep working on the 2-3% failure rate, at current volume that's still 200-300 real users failing per week.
-
-Latency tells a different story. The p50 response time is wildly inconsistent week to week - bouncing between 52s and 251s with no clear trend. The p95 sits at 446 seconds, meaning 1 in 20 requests takes over 7 minutes. For a developer setting API timeouts, that might be a hard limitation - worth further investigation.
-
-The top 5% of successful requests consume about 35 LLM calls and run 2.3x slower (374s vs 160s) at 2.7x the cost ($204 vs $77) compared to typical requests. Either those are genuinely harder queries, or the pipeline is looping unnecessarily.
-
-Model profiles are very different and that matters for user expectations - document mini vs pro difference explicitly. Mini demonstrates high reliability and low latency (96.2% success rate; p50: 34s, p95: 75s) with relatively few LLM calls (7 on average). In contrast, Pro has a slightly lower success rate (94.9%), substantially higher latency (p50: 306s, p95: 512s), and requires more LLM calls (25 on average), resulting in a slower experience with a long-tail distribution.
-
-**Recommendation**
-
-Cap LLM calls per request to contain the tail. Document mini vs pro differences explicitly - users need to know before they pick. Investigate the p50 volatility by correlating with infrastructure cost data. Keep pushing on the 2-3% failure rate.
-        """)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 4 — INFRASTRUCTURE
@@ -1348,7 +1299,6 @@ with tab4:
     ).reset_index()
     eff_agg = eff_agg[eff_agg['requests'] > 0]
     eff_agg['cost_per_req'] = eff_agg['total_cost'] / eff_agg['requests']
-    eff_agg['is_outlier'] = eff_agg['requests'] < 500
 
     eff_agg = eff_agg.reset_index(drop=True)
     _annots = [
