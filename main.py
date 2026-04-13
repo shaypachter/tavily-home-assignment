@@ -1007,12 +1007,12 @@ with tab4:
         x: {{
           ticks: {{ color: tc, font: {{size:10}}, callback: v => (v/TOTAL*100).toFixed(0) + '%' }},
           grid: {{ color: gc }},
-          title: {{ display: true, text: '% of total cost', color: tc, font: {{size:10}} }}
+          title: {{ display: true, text: '% of total cost', color: '#64748b', font: {{size:11, weight:'normal'}} }}
         }},
         y: {{
           ticks: {{ color: tc, font: {{size:10}} }},
           grid: {{ display: false }},
-          title: {{ display: true, text: 'Component', color: tc, font: {{size:10}} }}
+          title: {{ display: true, text: 'Component', color: '#64748b', font: {{size:11, weight:'normal'}} }}
         }}
       }}
     }}
