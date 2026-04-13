@@ -1276,7 +1276,7 @@ with tab4:
       ctx2.strokeStyle='#f87171'; ctx2.setLineDash([4,4]); ctx2.lineWidth=1;
       ctx2.beginPath(); ctx2.moveTo(xs.left,yPx); ctx2.lineTo(xs.right,yPx); ctx2.stroke();
       ctx2.fillStyle='#f87171'; ctx2.font='10px sans-serif';
-      ctx2.fillText('Q3 + 1.5×IQR', xs.right-70, yPx-4); ctx2.restore();
+      ctx2.restore();
     }};
   }}
   function getVdata(view) {{
