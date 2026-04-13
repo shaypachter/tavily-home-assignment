@@ -22,6 +22,7 @@ st.markdown("""
     .main { background-color: #ffffff; }
     .block-container { padding-top: 2rem; padding-bottom: 2rem; }
     .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.2rem 1.5rem; text-align: center; }
+    .kpi-card-alert { background: #fff8f8; border: 1px solid #fca5a5; border-radius: 12px; padding: 1.2rem 1.5rem; text-align: center; }
     .kpi-value { font-size: 2rem; font-weight: 600; color: #0f172a; font-family: 'DM Mono', monospace; line-height: 1.2; }
     .kpi-label { font-size: 0.75rem; color: #0f172a; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 0.3rem; }
     .section-header { font-size: 1.1rem; font-weight: 600; color: #0f172a; text-transform: uppercase; letter-spacing: 0.1em; margin: 1.5rem 0 0.8rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #e2e8f0; }
@@ -207,6 +208,18 @@ def load_data():
         'llm_thresh': _llm_thresh,
     }
 
+    # Mini vs pro comparison table
+    _model_stats = {}
+    for _m in ['mini', 'pro']:
+        _sub = success_only[success_only['MODEL'] == _m]
+        _all_m = rr_clean[rr_clean['MODEL'] == _m]
+        _model_stats[_m] = {
+            'sr': len(_sub) / len(_all_m) if len(_all_m) > 0 else 0,
+            'p50': _sub['RESPONSE_TIME_SECONDS'].quantile(0.5),
+            'p95': _sub['RESPONSE_TIME_SECONDS'].quantile(0.95),
+            'llm': _sub['LLM_CALLS'].mean(),
+        }
+
     # Q3 enhanced KPI card data
     _rt_p95_w = success_only.groupby('week_p')['RESPONSE_TIME_SECONDS'].quantile(0.95)
     q3_early_p95 = _rt_p95_w.iloc[:3].mean()
@@ -288,6 +301,7 @@ def load_data():
         q3_early_pct_bad=q3_early_pct_bad,
         q3_recent_pct_bad=q3_recent_pct_bad,
         q3_pct_bad_trend=q3_pct_bad_trend,
+        model_stats=_model_stats,
     )
 
 
@@ -298,7 +312,7 @@ infra_cols = data['infra_cols']
 model_cols = data['model_cols']
 
 with st.sidebar:
-    st.markdown("## 🔬 Research API")
+    st.markdown("## Research API")
     st.markdown("**Analytics Dashboard**")
     st.markdown("---")
     st.markdown("**Data range**")
@@ -309,27 +323,27 @@ with st.sidebar:
     st.markdown(f"`{rr['USER_ID'].nunique():,}`")
     st.markdown("---")
     st.markdown("**Questions**")
-    st.markdown("1. 📈 Retention: Do users come back?")
-    st.markdown("2. 💰 Profitability: Money on the floor?")
-    st.markdown("3. 🩺 Technical health")
-    st.markdown("4. 🏗️ Infrastructure costs")
+    st.markdown("1. Retention: Do users come back?")
+    st.markdown("2. Profitability: Money on the floor?")
+    st.markdown("3. Technical health")
+    st.markdown("4. Infrastructure costs")
 
 st.markdown("# Tavily Research API — Leadership Dashboard")
 st.markdown("*Production data · Nov 2025 – Mar 2026 · Sampled dataset · Complete weeks only*")
 st.markdown("---")
 
 tab1, tab2, tab3, tab4 = st.tabs([
-    "📈  Retention",
-    "💰  Profitability",
-    "🩺  Technical Health",
-    "🏗️  Infrastructure Costs",
+    "Retention",
+    "Profitability",
+    "Technical Health",
+    "Infrastructure Costs",
 ])
 
 # ═══════════════════════════════════════════════════════════
 # TAB 1 — RETENTION
 # ═══════════════════════════════════════════════════════════
 with tab1:
-    st.markdown("### Q1: Does the Research API retain users after their first week?")
+    st.markdown("### Q1: Does the Research API retain users after their first week,<br>and what behaviors in the first session predict whether a user will come back?", unsafe_allow_html=True)
     st.markdown('<div class="insight-box success"><b>Hypothesis:</b> Most users treat the Research API as a one-time experiment rather than integrating it into a recurring workflow. Users who arrive with a real integration (not just exploration) - signaled by their client source, usage depth, and plan type - will retain at significantly higher rates.</div>', unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
@@ -353,6 +367,15 @@ with tab1:
             fill='tozeroy', fillcolor='rgba(55,138,221,0.08)', marker=dict(size=5),
             hovertemplate='Week %{x}: %{y:.0%}<extra></extra>',
         ))
+        _w1_val = data['avg_ret'][data['avg_ret']['week_num']==1]['retention_rate'].values
+        _w1 = float(_w1_val[0]) if len(_w1_val) > 0 else 0.22
+        fig.add_annotation(
+            x=1, y=_w1,
+            text=f"<b>{_w1:.0%} survive week 1</b>",
+            showarrow=True, arrowhead=2, arrowcolor=COLORS['red'],
+            font=dict(color=COLORS['red'], size=11),
+            ax=40, ay=-30, bgcolor='white', bordercolor=COLORS['red'], borderwidth=1,
+        )
         fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
                           xaxis=dict(showgrid=False, dtick=1, title='Weeks since first use'),
                           yaxis=dict(tickformat='.0%', gridcolor='#f1f5f9', title='Retention rate'))
@@ -398,49 +421,41 @@ with tab1:
         st.markdown(table_html, unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Retention rate by week-0 behavior</div>', unsafe_allow_html=True)
-    seg_labels = ['MCP users', 'Non-MCP users', 'PayGo enabled', 'No PayGo', 'Non-streaming', 'Streaming']
-    seg_values = data['seg_values_dynamic']
-    seg_colors = [COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray']]
+    w0r = data['w0_requests_ret']
+    _r1 = float(w0r[w0r['bucket']=='1']['retention_rate'].values[0])
+    _r610 = float(w0r[w0r['bucket']=='6-10']['retention_rate'].values[0])
+    seg_labels = ['MCP users', 'Non-MCP users', 'PayGo enabled', 'No PayGo', 'Non-streaming', 'Streaming', '1 request', '6-10 requests']
+    seg_vals_dyn = list(data['seg_values_dynamic']) + [_r1, _r610]
+    seg_colors = [COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray'], COLORS['blue'], COLORS['gray'], COLORS['gray'], COLORS['blue']]
     fig = go.Figure(go.Bar(
-        x=seg_labels, y=seg_values, marker_color=seg_colors,
-        text=[f"{v:.0%}" for v in seg_values], textposition='outside',
+        x=seg_labels, y=seg_vals_dyn, marker_color=seg_colors,
+        text=[f"{v:.0%}" for v in seg_vals_dyn], textposition='outside',
         customdata=seg_labels, hovertemplate='%{customdata}: %{y:.0%}<extra></extra>',
     ))
-    fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(tickformat='.0%', range=[0, 0.65], gridcolor='#f1f5f9', title='Retention rate'),
+    fig.add_vline(x=5.5, line_dash='dot', line_color='#e2e8f0', line_width=1)
+    fig.add_annotation(x=6.5, y=0.62, text="Week-0 volume", showarrow=False,
+                       font=dict(size=10, color='#94a3b8'))
+    fig.update_layout(**PLOTLY_THEME, height=300, margin=dict(l=10, r=10, t=10, b=10),
+                      yaxis=dict(tickformat='.0%', range=[0, 0.68], gridcolor='#f1f5f9', title='Retention rate'),
                       xaxis=dict(showgrid=False, title='Segment'))
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown('<div class="section-header">Retention rate by week-0 request volume</div>', unsafe_allow_html=True)
-    w0r = data['w0_requests_ret']
-    fig = go.Figure(go.Bar(
-        x=w0r['bucket'], y=w0r['retention_rate'],
-        marker_color='#0C447C',
-        text=[f"{v:.0%}" for v in w0r['retention_rate']], textposition='outside',
-        customdata=w0r['user_count'],
-        hovertemplate='%{x} requests: %{y:.0%} retained (%{customdata:,} users)<extra></extra>',
-    ))
-    fig.update_layout(**PLOTLY_THEME, height=260, margin=dict(l=10, r=10, t=10, b=10),
-                      yaxis=dict(tickformat='.0%', range=[0, 0.5], gridcolor='#f1f5f9', title='Retention rate'),
-                      xaxis=dict(showgrid=False, title='Requests made in week 0'))
     st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Findings & recommendation"):
         st.markdown("""
 **Findings**
 
-Approximately 74% of users are one-time users, while average week-1 retention across cohorts is around 22%, and only 4.8% qualify as power users (active for four or more weeks).
+74% of users are one-time users. Average week-1 retention is 22%, and only 4.8% qualify as power users (active 4+ weeks) — yet that 4.8% generates 79% of all credits charged.
 
-The strongest predictors of retention from first-time-use behavior:
-- Plan type - enterprise retains 100%, bootstrap/growth/project retain 50-76%, but researcher (96% of users) retains only 25%. The product is largely being tested by low-tier users who don't convert.
-- Pay As You Go enabled = double retention rate - users with pay-as-you-go retain at 52% (vs 24% without PayGo). These users have a vested interest and are more likely to develop production-grade workflows.
-- MCP integration = 1.7x retention - MCP users retain at 32% vs 19% (for non-MCP). MCP users have already embedded the API into a tool, meaning they're builders, not explorers.
-- More requests in week 0 = higher retention. Going from 1 to 6-10 requests in the first week lifts retention from 21% to 35%. Early depth predicts stickiness.
-- Streaming users churn more - streaming retention is 17% vs 28% for non-streaming. Streaming is likely a quick-test behavior, not a production integration pattern.
+The strongest predictors of retention from first-week behavior:
+- Plan type — enterprise retains 100%, bootstrap 76%, growth 65%, project 55%, but researcher (96% of all users) retains only 25%. The product is largely being tested by low-tier users who don't convert.
+- PayGo enabled = 2x retention — 52% vs 24% without PayGo. These users have skin in the game and are more likely building real workflows.
+- MCP integration = 1.7x retention — MCP users retain at 32% vs 19%. MCP users have already embedded the API into a tool, meaning they're builders, not explorers.
+- More requests in week 0 = higher retention. Going from 1 request (21%) to 6-10 requests (35%) in the first week meaningfully lifts the chance of coming back.
+- Streaming users churn more — 17% vs 28% for non-streaming. Streaming looks like a quick-test behavior, not a production integration pattern.
 
 **Recommendation**
 
-The users who integrate properly (MCP, PayGo, higher plans) retain well. The issue is that most users never reach the point where the product becomes useful in their workflow. Focus onboarding on driving users toward a real integration - specifically push toward MCP setup and structured output usage, and identify researcher-plan users who look like builders (high week-0 volume) for upgrade prompts. Those users seem to be on the wrong plan.
+Users who integrate properly (MCP, PayGo, higher plans) retain well. The problem is most users never reach that point. Focus onboarding on driving users toward a real integration — push toward MCP setup, identify researcher-plan users with high week-0 volume as upgrade candidates. Those users are on the wrong plan.
         """)
 
 # ═══════════════════════════════════════════════════════════
@@ -479,14 +494,14 @@ with tab2:
     sdf = data['status_stats_df']
 
     with c1:
-        st.markdown(f'''<div class="kpi-card">
+        st.markdown(f'''<div class="kpi-card-alert">
             <div class="kpi-value">{uncharged_pct:.0%}</div>
             <div class="kpi-label" style="margin-top:6px;">Unrecovered system costs</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">(~${uncharged_cost_abs:,.0f})</div>
         </div>''', unsafe_allow_html=True)
 
     with c2:
-        st.markdown(f'''<div class="kpi-card">
+        st.markdown(f'''<div class="kpi-card-alert">
             <div class="kpi-value">{data["recovery_rate_usd"]:.0%}</div>
             <div class="kpi-label" style="margin-top:6px;">Cost recovery rate</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">Est. revenue ${data["total_revenue_usd"]:,.0f} / total costs ${data["total_cost_rr"]:,.0f}</div>
@@ -508,14 +523,14 @@ with tab2:
                 f' <span style="color:#94a3b8;font-weight:400;">({pct:.0f}%)</span></span>'
                 f'</div>'
             )
-        st.markdown(f'''<div class="kpi-card">
+        st.markdown(f'''<div class="kpi-card-alert">
             <div class="kpi-label" style="margin-bottom:8px;">Uncharged requests by status</div>
             {split_rows}
             <div style="font-size:10px;color:#94a3b8;margin-top:6px;">total {total_uncharged_all:,}</div>
         </div>''', unsafe_allow_html=True)
 
     with c4:
-        st.markdown(f'''<div class="kpi-card">
+        st.markdown(f'''<div class="kpi-card-alert">
             <div class="kpi-value">{uncharged_req_pct:.0%}</div>
             <div style="font-size:0.9rem;font-weight:500;color:#0f172a;margin-top:2px;">of successful requests uncharged</div>
             <div style="font-size:0.82rem;color:#64748b;margin-top:3px;">{uncharged_count:,} / {data["success_count"]:,} requests</div>
@@ -715,12 +730,60 @@ with tab3:
                 text=[f"{row['p50']:.0f}s", f"{row['p95']:.0f}s"], textposition='outside',
                 hovertemplate=f"{model} %{{x}}: %{{y:.0f}}s<extra></extra>",
             ))
-        fig.update_layout(**PLOTLY_THEME, height=280, barmode='group',
+        fig.update_layout(**PLOTLY_THEME, height=240, barmode='group',
                           margin=dict(l=10, r=10, t=30, b=10),
                           yaxis=dict(title='Response time (seconds)', gridcolor='#f1f5f9', range=[0, 620]),
                           xaxis=dict(showgrid=False, title='Latency percentile'),
                           legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='left', x=0))
         st.plotly_chart(fig, use_container_width=True)
+
+        ms = data['model_stats']
+        mini = ms['mini']
+        pro  = ms['pro']
+        p50_mult  = pro['p50'] / mini['p50']
+        p95_mult  = pro['p95'] / mini['p95']
+        llm_mult  = pro['llm'] / mini['llm']
+        sr_diff   = (pro['sr'] - mini['sr']) * 100
+
+        def badge(txt, good):
+            bg  = '#E1F5EE' if good else '#FCEBEB'
+            col = '#0F6E56' if good else '#A32D2D'
+            return f'<span style="background:{bg};color:{col};font-size:11px;font-weight:500;padding:2px 8px;border-radius:4px;">{txt}</span>'
+
+        th = 'padding:6px 8px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;'
+        rows = (
+            f'<tr style="border-bottom:0.5px solid #e2e8f0;">'
+            f'<td style="padding:8px;font-size:12px;color:#64748b;">Success rate</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["sr"]:.1%}</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["sr"]:.1%}</td>'
+            f'<td style="padding:8px;text-align:center;">{badge(f"{sr_diff:+.1f}pp", sr_diff > 0)}</td></tr>'
+            f'<tr style="border-bottom:0.5px solid #e2e8f0;">'
+            f'<td style="padding:8px;font-size:12px;color:#64748b;">p50 latency</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["p50"]:.0f}s</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["p50"]:.0f}s</td>'
+            f'<td style="padding:8px;text-align:center;">{badge(f"{p50_mult:.1f}x slower", False)}</td></tr>'
+            f'<tr style="border-bottom:0.5px solid #e2e8f0;">'
+            f'<td style="padding:8px;font-size:12px;color:#64748b;">p95 latency</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["p95"]:.0f}s</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["p95"]:.0f}s</td>'
+            f'<td style="padding:8px;text-align:center;">{badge(f"{p95_mult:.1f}x slower", False)}</td></tr>'
+            f'<tr>'
+            f'<td style="padding:8px;font-size:12px;color:#64748b;">Avg LLM calls</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{mini["llm"]:.0f}</td>'
+            f'<td style="padding:8px;font-size:12px;text-align:right;font-weight:500;">{pro["llm"]:.0f}</td>'
+            f'<td style="padding:8px;text-align:center;">{badge(f"{llm_mult:.1f}x more", True)}</td></tr>'
+        )
+        table_html = (
+            '<table style="width:100%;border-collapse:collapse;margin-top:8px;">'
+            '<thead><tr style="border-bottom:1px solid #e2e8f0;">'
+            f'<th style="{th}color:#64748b;text-align:left;">Metric</th>'
+            f'<th style="{th}color:#185FA5;text-align:right;">Mini</th>'
+            f'<th style="{th}color:#534AB7;text-align:right;">Pro</th>'
+            f'<th style="{th}color:#64748b;text-align:center;">Pro vs mini</th>'
+            '</tr></thead>'
+            f'<tbody>{rows}</tbody></table>'
+        )
+        st.markdown(table_html, unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Pipeline depth: top 5% vs typical 95% of requests</div>', unsafe_allow_html=True)
     pc = data['pipeline_comparison']
