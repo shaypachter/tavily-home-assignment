@@ -1169,6 +1169,20 @@ with tab4:
     ];
   }}
 
+  function getRange(data) {{
+    const vals = data.filter(v=>v!=null);
+    const mn = Math.min(...vals);
+    const mx = Math.max(...vals);
+    const pad = (mx - mn) * 0.1 || 1;
+    return {{ min: mn - pad, max: mx + pad }};
+  }}
+
+  function applyRange() {{
+    const r = getRange(selected.data);
+    chart.options.scales.y.min = r.min;
+    chart.options.scales.y.max = r.max;
+  }}
+
   function updateLegend() {{
     const leg = document.getElementById('compLegend');
     leg.innerHTML = `<span style="width:16px;height:2px;background:${{selected.color}};display:inline-block;border-radius:2px;"></span> ${{selected.label}}`;
@@ -1192,6 +1206,7 @@ with tab4:
         chart.options.scales.y.ticks.color = c.color;
         chart.options.scales.y.title.text = c.label + ' ($/hr)';
         chart.options.scales.y.title.color = c.color;
+        applyRange();
         chart.update();
         buildToggles();
         updateLegend();
@@ -1218,6 +1233,8 @@ with tab4:
       }}
     }}
   }});
+  applyRange();
+  chart.update();
   buildToggles();
   updateLegend();
   const toPoint = (d,i) => ({{ x:d.corr, y:d.total, r:Math.max(5,Math.sqrt(d.total/800)), label:d.label }});
