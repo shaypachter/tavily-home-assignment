@@ -1110,7 +1110,7 @@ with tab4:
 
 <div class="card">
   <p class="slabel">Correlation with research request volume across all components</p>
-  <p class="sdesc">A threshold of 0.3 was chosen based on a natural gap in the data - all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
+  <p class="sdesc">Pearson correlation between each component's hourly cost and hourly research request count. Threshold of 0.3 reflects a natural gap in the data — all components cluster either below 0.22 or above 0.36, with nothing in between.</p>
   <div class="legend-row">
     <span style="display:flex;align-items:center;gap:4px;"><span class="dot" style="background:#534AB7;"></span>Below threshold</span>
     <span style="display:flex;align-items:center;gap:4px;"><span class="dot" style="background:#f59e0b;"></span>Above threshold</span>
@@ -1224,19 +1224,13 @@ with tab4:
     hourly_js = json.dumps(hourly_js_dict)
 
     _spike_counts = {}
-    _months_label = {'2025-12':'Dec 2025','2026-01':'Jan 2026','2026-02':'Feb 2026','2026-03':'Mar 2026'}
     for _m in ['2025-12','2026-01','2026-02','2026-03']:
         _sub = merged_spike[merged_spike['month'] == _m].copy()
         _mean_h = float(_sub['total_cost'].mean())
         _std_h = float(_sub['total_cost'].std())
         _thresh_h = _mean_h + 2*_std_h
         _spike_counts[_m] = int((_sub['total_cost'] > _thresh_h).sum())
-
-    _sc1, _sc2, _sc3, _sc4 = st.columns(4)
-    for _col, (_month, _count) in zip([_sc1, _sc2, _sc3, _sc4], _spike_counts.items()):
-        with _col:
-            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{_count}</div><div class="kpi-label">Hourly spikes</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{_months_label[_month]}</div></div>', unsafe_allow_html=True)
-    st.markdown("")
+    spike_counts_js = json.dumps(_spike_counts)
 
     html_spike = f"""
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -1263,11 +1257,15 @@ with tab4:
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block;"></span>Cost spike (&gt;mean+2sigma)</span>
   <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:3px;border-top:2px dashed #4ade80;display:inline-block;"></span>Research requests</span>
 </div>
-<div class="stats" id="statsRow"></div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+  <div class="stats" id="statsRow" style="flex:1;"></div>
+  <span id="spikeBadge" style="display:none;background:#FCEBEB;color:#A32D2D;font-size:11px;font-weight:500;padding:3px 10px;border-radius:12px;white-space:nowrap;"></span>
+</div>
 <div style="position:relative;width:100%;height:300px;"><canvas id="spikeChart"></canvas></div>
 <script>
   const DAILY = {daily_js};
   const HOURLY = {hourly_js};
+  const SPIKE_COUNTS = {spike_counts_js};
   const tc='#0f172a', gc='rgba(0,0,0,0.07)';
   function makeThresholdLine(threshold) {{
     return function(chart) {{
@@ -1315,6 +1313,14 @@ with tab4:
     chart.options.scales.y.title.text='Total cost ('+vdata.costUnit+')';
     chart.options.scales.y2.title.text='Requests ('+vdata.reqUnit+')';
     chart.update(); updateStats(vdata);
+    const badge = document.getElementById('spikeBadge');
+    if (view !== 'daily') {{
+      const cnt = SPIKE_COUNTS[view] || 0;
+      badge.textContent = cnt + ' spike' + (cnt !== 1 ? 's' : '') + ' this month';
+      badge.style.display = 'inline-block';
+    }} else {{
+      badge.style.display = 'none';
+    }}
   }}
   const initData=getVdata('daily');
   const chart=new Chart(document.getElementById('spikeChart'),{{
