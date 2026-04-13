@@ -921,7 +921,7 @@ with tab4:
   <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
   <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
 </div>
-<div style="position:relative;width:100%;height:400px;">
+<div style="position:relative;width:100%;height:440px;">
   <canvas id="barChart"></canvas>
 </div>
 <script>
@@ -1007,19 +1007,19 @@ with tab4:
         x: {{
           ticks: {{ color: tc, font: {{size:10}}, callback: v => (v/TOTAL*100).toFixed(0) + '%' }},
           grid: {{ color: gc }},
-          title: {{ display: true, text: '% of total cost', color: '#64748b', font: {{size:11, weight:'normal'}} }}
+          title: {{ display: true, text: '% of total cost', color: '#94a3b8', font: {{size:11}} }}
         }},
         y: {{
           ticks: {{ color: tc, font: {{size:10}} }},
           grid: {{ display: false }},
-          title: {{ display: true, text: 'Component', color: '#64748b', font: {{size:11, weight:'normal'}} }}
+          title: {{ display: true, text: 'Component', color: '#94a3b8', font: {{size:11}} }}
         }}
       }}
     }}
   }});
 </script>
 """
-    st.components.v1.html(html_code, height=460)
+    st.components.v1.html(html_code, height=510)
 
     st.markdown('<div class="section-header">Fixed vs Variable Cost Components</div>', unsafe_allow_html=True)
 
@@ -1236,22 +1236,6 @@ with tab4:
 
     st.markdown('<div class="section-header">Cost Spikes - Total Cost vs Research Request Volume</div>', unsafe_allow_html=True)
 
-    _spike_counts = {}
-    for _m in ['2025-12','2026-01','2026-02','2026-03']:
-        _sub = merged_spike[merged_spike['month'] == _m].copy()
-        _mean_h = float(_sub['total_cost'].mean())
-        _std_h = float(_sub['total_cost'].std())
-        _thresh_h = _mean_h + 2*_std_h
-        _spike_counts[_m] = int((_sub['total_cost'] > _thresh_h).sum())
-
-    _sc1, _sc2, _sc3, _sc4 = st.columns(4)
-    for _col, (_month, _count) in zip([_sc1, _sc2, _sc3, _sc4], _spike_counts.items()):
-        _label = _month.replace('2025-','').replace('2026-','')
-        _months = {'12':'Dec 2025','01':'Jan 2026','02':'Feb 2026','03':'Mar 2026'}
-        with _col:
-            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{_count}</div><div class="kpi-label">Hourly spikes</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{_months[_label]}</div></div>', unsafe_allow_html=True)
-    st.markdown("")
-
     merged_spike = ic.copy()
     merged_spike['hour_naive'] = merged_spike['hour'].dt.tz_localize(None)
     rr_h = rr.groupby(rr['hour_floor'].dt.tz_localize(None)).size().reset_index(name='requests')
@@ -1293,6 +1277,21 @@ with tab4:
             'spikes':   int((sub['total_cost'] > thresh_h).sum())
         }
     hourly_js = json.dumps(hourly_js_dict)
+
+    _spike_counts = {}
+    _months_label = {'2025-12':'Dec 2025','2026-01':'Jan 2026','2026-02':'Feb 2026','2026-03':'Mar 2026'}
+    for _m in ['2025-12','2026-01','2026-02','2026-03']:
+        _sub = merged_spike[merged_spike['month'] == _m].copy()
+        _mean_h = float(_sub['total_cost'].mean())
+        _std_h = float(_sub['total_cost'].std())
+        _thresh_h = _mean_h + 2*_std_h
+        _spike_counts[_m] = int((_sub['total_cost'] > _thresh_h).sum())
+
+    _sc1, _sc2, _sc3, _sc4 = st.columns(4)
+    for _col, (_month, _count) in zip([_sc1, _sc2, _sc3, _sc4], _spike_counts.items()):
+        with _col:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-value">{_count}</div><div class="kpi-label">Hourly spikes</div><div style="font-size:0.72rem;color:#64748b;margin-top:4px;">{_months_label[_month]}</div></div>', unsafe_allow_html=True)
+    st.markdown("")
 
     html_spike = f"""
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
