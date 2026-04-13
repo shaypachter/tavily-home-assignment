@@ -1112,13 +1112,13 @@ with tab4:
 </style>
 <div class="card">
   <p class="slabel">Step 1 - Observed: cost components vs research request volume over time</p>
-  <p class="sdesc">Select one component to compare against research request volume. Each component uses its own Y-axis scale.</p>
+  <p class="sdesc">Select one component. All lines are normalized to % of their own average (100 = typical week). Fixed costs stay flat near 100; variable costs move with demand.</p>
   <div id="toggles"></div>
   <div class="legend-row">
     <span id="compLegend" style="display:flex;align-items:center;gap:4px;"></span>
-    <span style="display:flex;align-items:center;gap:4px;margin-left:12px;">
+    <span style="display:flex;align-items:center;gap:6px;margin-left:16px;">
       <span style="width:16px;height:2px;border-top:2px dashed #4ade80;display:inline-block;"></span>
-      Research requests
+      <span style="font-size:11px;color:#64748b;">Research requests (normalized)</span>
     </span>
   </div>
   <div style="position:relative;width:100%;height:260px;"><canvas id="timeChart"></canvas></div>
@@ -1159,28 +1159,23 @@ with tab4:
   const scatterAbove = {scatter_above_js};
   let selected = components.find(c=>c.preset) || components[0];
 
+  function normalize(data) {{
+    const vals = data.filter(v => v != null && v !== 0);
+    if (!vals.length) return data.map(() => 100);
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return data.map(v => v == null ? null : Math.round((v / mean) * 100));
+  }}
+
+  const requestsNorm = normalize(requestsData);
+
   function buildDatasets() {{
     return [
-      {{ label:selected.label, data:selected.data, borderColor:selected.color,
+      {{ label:selected.label, data:normalize(selected.data), borderColor:selected.color,
         backgroundColor:'transparent', borderWidth:2, pointRadius:2, yAxisID:'y' }},
-      {{ label:'Research requests', data:requestsData, borderColor:'#4ade80',
+      {{ label:'Research requests', data:requestsNorm, borderColor:'#4ade80',
         backgroundColor:'rgba(74,222,128,0.06)', borderWidth:1.5, borderDash:[4,4],
-        pointRadius:2, fill:true, yAxisID:'y2' }}
+        pointRadius:2, fill:true, yAxisID:'y' }}
     ];
-  }}
-
-  function getRange(data) {{
-    const vals = data.filter(v=>v!=null);
-    const mn = Math.min(...vals);
-    const mx = Math.max(...vals);
-    const pad = (mx - mn) * 0.1 || 1;
-    return {{ min: mn - pad, max: mx + pad }};
-  }}
-
-  function applyRange() {{
-    const r = getRange(selected.data);
-    chart.options.scales.y.min = r.min;
-    chart.options.scales.y.max = r.max;
   }}
 
   function updateLegend() {{
@@ -1206,7 +1201,6 @@ with tab4:
         chart.options.scales.y.ticks.color = c.color;
         chart.options.scales.y.title.text = c.label + ' ($/hr)';
         chart.options.scales.y.title.color = c.color;
-        applyRange();
         chart.update();
         buildToggles();
         updateLegend();
@@ -1225,15 +1219,13 @@ with tab4:
       scales:{{
         x:{{ ticks:{{ color:tc, font:{{size:10}}, maxRotation:45 }}, grid:{{ color:gc }},
              title:{{ display:true, text:'Week', color:tc, font:{{size:10}} }} }},
-        y:{{ ticks:{{ color:selected.color, font:{{size:10}}, callback:v=>'$'+v.toFixed(0) }},
+        y:{{ ticks:{{ color:tc, font:{{size:10}}, callback:v=>v+'%' }},
              grid:{{ color:gc }},
-             title:{{ display:true, text:selected.label+' ($/hr)', color:selected.color, font:{{size:10}} }} }},
-        y2:{{ position:'right', ticks:{{ color:'#4ade80', font:{{size:10}} }}, grid:{{ display:false }},
-              title:{{ display:true, text:'Requests/hr', color:'#4ade80', font:{{size:10}} }} }}
+             title:{{ display:true, text:'Index (100 = component average)', color:tc, font:{{size:10}} }},
+             min:0 }}
       }}
     }}
   }});
-  applyRange();
   chart.update();
   buildToggles();
   updateLegend();
