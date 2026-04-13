@@ -1210,7 +1210,7 @@ with tab4:
     hourly_js_dict = {}
     for m in ['2025-12','2026-01','2026-02','2026-03']:
         sub = merged_spike[merged_spike['month'] == m].copy()
-        sub2 = sub[sub.index % 2 == 0]
+        sub2 = sub.copy()  # use all points to avoid missing spikes
         _q1h = float(sub['total_cost'].quantile(0.25))
         _q3h = float(sub['total_cost'].quantile(0.75))
         thresh_h = _q3h + 1.5 * (_q3h - _q1h)
@@ -1281,7 +1281,7 @@ with tab4:
   function getVdata(view) {{
     if(view==='daily') return {{ ...DAILY, labels:DAILY.labels, costs:DAILY.costs, reqs:DAILY.reqs, costUnit:'$/day', reqUnit:'req/day', granularity:'Daily (>=50 req/day)' }};
     const h=HOURLY[view];
-    return {{ ...h, labels:h.labels, costs:h.costs, reqs:h.requests, costUnit:'$/hr', reqUnit:'req/hr', granularity:view+' (hourly, every 2nd point)' }};
+    return {{ ...h, labels:h.labels, costs:h.costs, reqs:h.requests, costUnit:'$/hr', reqUnit:'req/hr', granularity:view+' (hourly)' }};
   }}
   function buildDs(vdata) {{
     return [
