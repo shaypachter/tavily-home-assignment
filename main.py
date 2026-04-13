@@ -914,14 +914,12 @@ with tab4:
   .tbtn {{ padding:4px 14px; font-size:12px; border-radius:6px; border:1px solid #cbd5e1; background:transparent; color:#64748b; cursor:pointer; }}
   .tbtn.active {{ background:#1e293b; color:#ffffff; }}
 </style>
-<div style="margin-bottom:0.5rem;">
-  <div style="font-size:14px;font-weight:500;color:#0f172a;margin-bottom:10px;">Cost share by component</div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
-    <button class="tbtn active" id="btn-all" onclick="setFilter('all')">All</button>
-    <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
-    <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
-  </div>
+<div style="font-size:1.1rem;font-weight:600;color:#0f172a;text-transform:uppercase;letter-spacing:0.1em;padding-bottom:0.5rem;border-bottom:1px solid #e2e8f0;margin-bottom:0.8rem;">Cost share by component</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;">
+  <span style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">View:</span>
+  <button class="tbtn active" id="btn-all" onclick="setFilter('all')">All</button>
+  <button class="tbtn" id="btn-infra" onclick="setFilter('infra')">Infrastructure</button>
+  <button class="tbtn" id="btn-models" onclick="setFilter('models')">Models</button>
 </div>
 <div style="position:relative;width:100%;height:400px;">
   <canvas id="barChart"></canvas>
@@ -933,19 +931,39 @@ with tab4:
   const allData   = {all_js};
   let currentFilter = 'all';
 
-  function getSubtotal(data) {{ return data.reduce((s,d)=>s+d.value,0); }}
-
   function getData(f) {{
     if (f==="infra")  return [...infraData].sort((a,b)=>a.value-b.value);
     if (f==="models") return [...modelData].sort((a,b)=>a.value-b.value);
     return allData;
   }}
 
+  const labelPlugin = {{
+    id: 'inlineLabels',
+    afterDatasetsDraw(chart) {{
+      const ctx2 = chart.ctx;
+      const meta = chart.getDatasetMeta(0);
+      const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
+      ctx2.save();
+      ctx2.font = '10px sans-serif';
+      ctx2.fillStyle = '#64748b';
+      ctx2.textAlign = 'left';
+      ctx2.textBaseline = 'middle';
+      meta.data.forEach(function(bar, i) {{
+        const val = chart.data.datasets[0].data[i];
+        if (!val) return;
+        const pct = (val/TOTAL*100).toFixed(1) + '%';
+        const dollar = '$' + Math.round(val/1000) + 'k';
+        ctx2.fillText(dollar + '  ' + pct, bar.x + 6, bar.y);
+      }});
+      ctx2.restore();
+    }}
+  }};
+
   function setFilter(f) {{
     currentFilter = f;
     ["all","infra","models"].forEach(x=>document.getElementById("btn-"+x).classList.toggle("active",x===f));
     const bar = getData(f);
-    const subtotal = getSubtotal(bar);
+    const subtotal = bar.reduce((s,d)=>s+d.value,0);
     barChart.data.labels = bar.map(d=>d.label);
     barChart.data.datasets[0].data = bar.map(d=>d.value);
     barChart.data.datasets[0].backgroundColor = bar.map(d=>d.color);
@@ -954,22 +972,19 @@ with tab4:
       const pctOfAll = (val/TOTAL*100).toFixed(1);
       const pctOfGroup = (val/subtotal*100).toFixed(1);
       const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
-      if (f === 'all') {{
-        return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
-      }} else {{
-        const groupName = f === 'infra' ? 'infrastructure' : 'models';
-        return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
-      }}
+      if (f === 'all') return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+      const groupName = f === 'infra' ? 'infrastructure' : 'models';
+      return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
     }};
     barChart.update();
   }}
 
   const ib = getData('all');
-  const subtotalAll = getSubtotal(ib);
   const gc="rgba(0,0,0,0.07)", tc="#0f172a";
 
   const barChart = new Chart(document.getElementById("barChart"), {{
     type: "bar",
+    plugins: [labelPlugin],
     data: {{
       labels: ib.map(d=>d.label),
       datasets: [{{
@@ -982,7 +997,7 @@ with tab4:
       responsive: true,
       maintainAspectRatio: false,
       indexAxis: "y",
-      layout: {{ padding: {{ right: 60 }} }},
+      layout: {{ padding: {{ right: 80 }} }},
       plugins: {{
         legend: {{ display: false }},
         tooltip: {{
@@ -993,12 +1008,9 @@ with tab4:
               const subtotal = getData(currentFilter).reduce((s,d)=>s+d.value,0);
               const pctOfGroup = (val/subtotal*100).toFixed(1);
               const dollar = '$' + val.toLocaleString('en-US', {{maximumFractionDigits:0}});
-              if (currentFilter === 'all') {{
-                return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
-              }} else {{
-                const groupName = currentFilter === 'infra' ? 'infrastructure' : 'models';
-                return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
-              }}
+              if (currentFilter === 'all') return ` ${{dollar}}  ·  ${{pctOfAll}}% of total`;
+              const groupName = currentFilter === 'infra' ? 'infrastructure' : 'models';
+              return ` ${{dollar}}  ·  ${{pctOfAll}}% of all  ·  ${{pctOfGroup}}% of ${{groupName}}`;
             }}
           }}
         }}
